@@ -1,0 +1,32 @@
+[project]
+name = "porcaro"
+version = "0.1.0"
+description = "Automatic drum transcription using deep learning"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "demucs==3.0.4",
+    "dotenv>=0.9.9",
+    "fastapi>=0.115.12",
+    "librosa>=0.11.0",
+    "music21<8",
+    "pandas>=2.2.3",
+    "pedalboard>=0.9.17",
+    "torch==2.5",
+]
+
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+exclude = ["notebooks"]
+
+[dependency-groups]
+dev = [
+    "h5py>=3.13.0",
+    "ipykernel>=6.29.5",
+    "matplotlib>=3.10.3",
+    "pytubefix>=8.13.1",
+]
