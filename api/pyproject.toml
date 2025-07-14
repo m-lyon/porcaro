@@ -12,7 +12,7 @@ dependencies = [
     "music21<8",
     "pandas>=2.2.3",
     "pedalboard>=0.9.17",
-    "torch==2.5",
+    "torch>2.2",
 ]
 
 [build-system]
