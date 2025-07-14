@@ -8,9 +8,9 @@ import matplotlib.pyplot as plt
 
 def plot_onset_on_track(
     track: np.ndarray,
-    sr: int,
+    sr: int | float,
     onset: pd.Series | np.ndarray,
-    start: float | None = None,
+    start: float = 0,
     stop: float | None = None,
     _8: None | np.ndarray = None,
     _16: None | np.ndarray = None,
@@ -36,8 +36,8 @@ def plot_onset_on_track(
         fig, ax: The matplotlib figure and axis objects.
 
     '''
-    start_sample = librosa.time_to_samples(start, sr=sr) if start is not None else 0
-    stop_sample = librosa.time_to_samples(stop, sr=sr) if stop is not None else len(track)
+    start_sample = librosa.time_to_samples(start, sr=sr)
+    stop_sample = librosa.time_to_samples(stop if stop is not None else len(track), sr=sr)
 
     fig, ax = plt.subplots(nrows=1, sharex=True, figsize=(20, 5))
 

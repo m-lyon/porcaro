@@ -137,11 +137,11 @@ class DrumTranscriber:
         ).to_numpy()
         eighth_notes = self.get_eighth_note_time_grid(self.note_offset)
         synced_eighth_notes = self.map_onsets_to_eighth_notes(eighth_notes)
-        grid = Grid(synced_eighth_notes)
-        synced_grid = self.master_sync(grid)
+        self.grid = Grid(synced_eighth_notes)
+        self.synced_grid = self.master_sync(self.grid)
         pitch_dict = self.get_pitch_dict()
         stream_time_map, stream_pitch, stream_note = self.build_stream(
-            grid, pitch_dict, synced_grid
+            self.grid, pitch_dict, self.synced_grid
         )
         music21_data = self.get_music21_data(stream_time_map, stream_pitch, stream_note)
         self.sheet = self.sheet_construction(music21_data, song_title=song_title)

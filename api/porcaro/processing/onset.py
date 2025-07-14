@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 def _get_samples(
     track: np.ndarray,
-    sample_rate: int,
+    sample_rate: int | float,
     hop_length: int,
     backtrack: bool = False,
 ) -> tuple[np.ndarray, np.ndarray]:
@@ -41,7 +41,7 @@ def _get_duration(resolution: int, bpm: float) -> float:
 def _get_window_size(
     resolution: int | None,
     bpm: float,
-    sample_rate: int,
+    sample_rate: int | float,
     onset_samples: np.ndarray,
     fixed_clip_length: bool = False,
 ) -> int:
@@ -69,7 +69,7 @@ def _resample(x, target_length):
 
 def get_hit_onsets(
     drum_track: np.ndarray,
-    sample_rate: int,
+    sample_rate: int | float,
     estimated_bpm: float | None = None,
     resolution: int | None = 16,
     fixed_clip_length: bool = False,
@@ -132,6 +132,8 @@ def get_hit_onsets(
 
     if not backtrack:
         padding = librosa.time_to_samples(_get_duration(32, bpm) / 4, sr=sample_rate)
+    else:
+        padding = 0
 
     # create df for prediction task
     df_dict = {'audio_clip': [], 'sample_start': [], 'sample_end': [], 'sampling_rate': []}
