@@ -8,7 +8,9 @@ from porcaro.models.annoteator.module import load_pretrained_model
 from porcaro.models.annoteator.dataset import DrumHitPredictDataset
 
 
-def run_prediction(data: pd.DataFrame, sr: int, device: str = 'cpu') -> pd.DataFrame:
+def run_prediction(
+    data: pd.DataFrame, sr: int | float, device: str = 'cpu'
+) -> pd.DataFrame:
     model = load_pretrained_model().to(device)
 
     dataset = DrumHitPredictDataset(data, sr)
@@ -38,7 +40,7 @@ def run_prediction(data: pd.DataFrame, sr: int, device: str = 'cpu') -> pd.DataF
     predictions = np.concatenate(predictions, axis=0)
     prediction = pd.DataFrame(predictions, columns=drum_hits)
 
-    data.reset_index(inplace=True)
+    data = data.reset_index()
     prediction.reset_index(inplace=True)
 
     result = data.merge(prediction, left_on='index', right_on='index')

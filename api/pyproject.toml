@@ -30,3 +30,6 @@ dev = [
     "matplotlib>=3.10.3",
     "pytubefix>=8.13.1",
 ]
+
+[tool.ruff.format]
+quote-style = "preserve"

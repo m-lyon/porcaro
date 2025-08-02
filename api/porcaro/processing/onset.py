@@ -1,4 +1,4 @@
-'''Onset detection for drum tracks.'''
+"""Onset detection for drum tracks."""
 
 import logging
 
@@ -9,51 +9,49 @@ from pedalboard import Compressor
 from pedalboard import Pedalboard  # type: ignore
 from librosa.feature import rhythm
 
+from porcaro.processing.utils import get_note_duration
+from porcaro.processing.window import get_fixed_window_size
+
 logger = logging.getLogger(__name__)
 
 
-def _get_samples(
+def get_librosa_onsets(
+    track: np.ndarray,
+    sample_rate: int | float,
+    hop_length: int,
+) -> np.ndarray:
+    """Convert onset frames to samples."""
+    onset_env = librosa.onset.onset_strength(
+        y=track, sr=sample_rate, hop_length=hop_length
+    )
+    onset_frames = librosa.onset.onset_detect(
+        y=track, onset_envelope=onset_env, sr=sample_rate
+    )
+    onsets = librosa.frames_to_samples(onset_frames * (hop_length / 512))
+
+    return onsets
+
+
+def _get_onsets(
     track: np.ndarray,
     sample_rate: int | float,
     hop_length: int,
     backtrack: bool = False,
 ) -> tuple[np.ndarray, np.ndarray]:
-    '''Convert onset frames to samples.'''
-    onset_env = librosa.onset.onset_strength(y=track, sr=sample_rate, hop_length=hop_length)
+    """Convert onset frames to samples."""
+    onset_env = librosa.onset.onset_strength(
+        y=track, sr=sample_rate, hop_length=hop_length
+    )
     onset_frames = librosa.onset.onset_detect(
         y=track, onset_envelope=onset_env, sr=sample_rate, backtrack=backtrack
     )
-    peak_frames = librosa.onset.onset_detect(y=track, onset_envelope=onset_env, sr=sample_rate)
+    peak_frames = librosa.onset.onset_detect(
+        y=track, onset_envelope=onset_env, sr=sample_rate
+    )
     onset_samples = librosa.frames_to_samples(onset_frames * (hop_length / 512))
     peak_samples = librosa.frames_to_samples(peak_frames * (hop_length / 512))
 
     return onset_samples, peak_samples
-
-
-def _get_duration(resolution: int, bpm: float) -> float:
-    '''Calculate the duration of a note based on the resolution and bpm.'''
-    valid_resolutions = {4: 1, 8: 2, 16: 4, 32: 8}
-    if resolution not in valid_resolutions:
-        raise ValueError('Resolution must be either 4, 8, 16, or 32')
-    return 60 / bpm / valid_resolutions[resolution]
-
-
-def _get_window_size(
-    resolution: int | None,
-    bpm: float,
-    sample_rate: int | float,
-    onset_samples: np.ndarray,
-    fixed_clip_length: bool = False,
-) -> int:
-    if fixed_clip_length:
-        window_size: int = librosa.time_to_samples(0.18, sr=sample_rate)  # type: ignore
-        return window_size
-    if resolution is None:
-        return int(pd.Series(onset_samples).diff().quantile(q=0.1))
-    else:
-        duration = _get_duration(resolution, bpm)
-        window_size: int = librosa.time_to_samples(duration, sr=sample_rate)  # type: ignore
-        return window_size
 
 
 def _resample(x, target_length):
@@ -61,7 +59,9 @@ def _resample(x, target_length):
     tar_sr_ratio = target_length / len(x['audio_clip'])
     return pd.Series(
         [
-            librosa.resample(x['audio_clip'], orig_sr=org_sr, target_sr=int(org_sr * tar_sr_ratio)),
+            librosa.resample(
+                x['audio_clip'], orig_sr=org_sr, target_sr=int(org_sr * tar_sr_ratio)
+            ),
             int(org_sr * tar_sr_ratio),
         ]
     )
@@ -103,17 +103,18 @@ def get_hit_onsets(
 
     '''
     if estimated_bpm is None:
-        logger.info('Estimating BPM value from time difference between each detected drum hit')
-    if not fixed_clip_length:
-        if resolution is None:
-            logger.info(
-                'Resolution is not set, using 25% quantile value of all time differences '
-                'between each detected drum hit'
-            )
-        elif resolution not in [4, 8, 16, 32]:
-            raise ValueError('Resolution must be either 4, 8, 16, or 32')
+        logger.info(
+            'Estimating BPM value from time difference between each detected drum hit'
+        )
+    if not fixed_clip_length and resolution is None:
+        logger.info(
+            'Resolution is not set, using 25% quantile value of all time differences '
+            'between each detected drum hit'
+        )
 
-    onset_samples, peak_samples = _get_samples(drum_track, sample_rate, hop_length, backtrack)
+    onset_samples, peak_samples = _get_onsets(
+        drum_track, sample_rate, hop_length, backtrack
+    )
 
     # calculate note duration for 4,8,16,32 note with respect to the bpm of the song
     if estimated_bpm is None:
@@ -126,17 +127,28 @@ def get_hit_onsets(
     logger.info(f'Estimated BPM value: {bpm}')
     if bpm > 110:
         logger.info('BPM greater than 110, re-calibrating hop-length to 512')
-        onset_samples, peak_samples = _get_samples(drum_track, sample_rate, 512, backtrack)
+        onset_samples, peak_samples = _get_onsets(
+            drum_track, sample_rate, 512, backtrack
+        )
 
-    window_size = _get_window_size(resolution, bpm, sample_rate, onset_samples, fixed_clip_length)
+    window_size = get_fixed_window_size(
+        resolution if not fixed_clip_length else 0.18, bpm, sample_rate, onset_samples
+    )
 
     if not backtrack:
-        padding = librosa.time_to_samples(_get_duration(32, bpm) / 4, sr=sample_rate)
+        padding = librosa.time_to_samples(
+            get_note_duration(32, bpm) / 4, sr=sample_rate
+        )
     else:
         padding = 0
 
     # create df for prediction task
-    df_dict = {'audio_clip': [], 'sample_start': [], 'sample_end': [], 'sampling_rate': []}
+    df_dict = {
+        'audio_clip': [],
+        'sample_start': [],
+        'sample_end': [],
+        'sampling_rate': [],
+    }
 
     for onset in onset_samples:
         if onset - padding < 0:
@@ -157,7 +169,9 @@ def get_hit_onsets(
         axis=1,
     )
 
-    pb = Pedalboard([Compressor(threshold_db=-27, ratio=4, attack_ms=1, release_ms=200)])
+    pb = Pedalboard(
+        [Compressor(threshold_db=-27, ratio=4, attack_ms=1, release_ms=200)]
+    )
     df['audio_clip'] = df.apply(lambda x: pb(x.audio_clip, x.sampling_rate), axis=1)
 
     return df, bpm

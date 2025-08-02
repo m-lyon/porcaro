@@ -2,7 +2,8 @@
 
 import logging
 from copy import deepcopy
-from dataclasses import dataclass
+from pathlib import Path
+
 
 import numpy as np
 import pandas as pd
@@ -13,45 +14,12 @@ from music21 import stream
 from music21 import duration
 from music21 import metadata
 from music21 import percussion
+from porcaro.processing.utils import TimeSignature
 
-
-@dataclass
-class TimeSignature:
-    '''Class to represent a time signature.'''
-
-    beats_in_measure: int
-    note_value: int
+from porcaro.processing.bpm import BPM
 
 
 logger = logging.getLogger(__name__)
-
-
-class BPM:
-    '''Class to handle BPM calculations.'''
-
-    def __init__(self, bpm: float):
-        '''Initialize the BPM class.'''
-        self.bpm = bpm
-
-    @property
-    def eighth_note_duration(self) -> float:
-        '''Get the duration of an eighth note.'''
-        return 60 / self.bpm / 2
-
-    @property
-    def sixteenth_note_duration(self) -> float:
-        '''Get the duration of a sixteenth note.'''
-        return 60 / self.bpm / 4
-
-    @property
-    def thirty_second_note_duration(self) -> float:
-        '''Get the duration of a thirty-second note.'''
-        return 60 / self.bpm / 8
-
-    @property
-    def eigth_triplet_note_duration(self) -> float:
-        '''Get the duration of an eighth triplet note.'''
-        return 60 / self.bpm / 3
 
 
 class Grid:
@@ -77,7 +45,9 @@ class Grid:
         '''The sixteenth note grid.'''
         if self._sixteenth_notes is not None:
             return self._sixteenth_notes
-        self._sixteenth_notes = self.eighth_notes[:-1] + (np.diff(self.eighth_notes) / 2)
+        self._sixteenth_notes = self.eighth_notes[:-1] + (
+            np.diff(self.eighth_notes) / 2
+        )
         return self._sixteenth_notes
 
     @property
@@ -85,7 +55,9 @@ class Grid:
         '''The thirty-second note grid.'''
         if self._thirty_second_notes is not None:
             return self._thirty_second_notes
-        combined = np.sort(np.concatenate((self.eighth_notes, self.sixteenth_notes), axis=0))
+        combined = np.sort(
+            np.concatenate((self.eighth_notes, self.sixteenth_notes), axis=0)
+        )
         self._thirty_second_notes = combined[:-1] + (np.diff(combined) / 2)
         return self._thirty_second_notes
 
@@ -106,7 +78,9 @@ class Grid:
         '''The eighth note sixlet grid.'''
         if self._eighth_note_sixlets is not None:
             return self._eighth_note_sixlets
-        combined = np.sort(np.concatenate((self.eighth_note_triplets, self.eighth_notes), axis=0))
+        combined = np.sort(
+            np.concatenate((self.eighth_note_triplets, self.eighth_notes), axis=0)
+        )
         self._eighth_note_sixlets = combined[:-1] + (np.diff(combined) / 2)
         return self._eighth_note_sixlets
 
@@ -159,11 +133,14 @@ class DrumTranscriber:
         total_eighth_notes: list[int] = []
         for n in range(20):
             tmp_eighth_note_grid = self.get_eighth_note_time_grid(n)
-            tmp_synced_eighth_note_grid = self.map_onsets_to_eighth_notes(tmp_eighth_note_grid)
+            tmp_synced_eighth_note_grid = self.map_onsets_to_eighth_notes(
+                tmp_eighth_note_grid
+            )
             total_eighth_notes.append(
                 len(
                     np.intersect1d(
-                        np.around(self.note_line, 8), np.around(tmp_synced_eighth_note_grid, 8)
+                        np.around(self.note_line, 8),
+                        np.around(tmp_synced_eighth_note_grid, 8),
                     )
                 )
             )
@@ -185,7 +162,7 @@ class DrumTranscriber:
         first_note = librosa.samples_to_time(
             self.predictions.peak_sample.iloc[note_offset], sr=self.sample_rate
         )
-        return np.arange(first_note, self.duration, self.bpm.eighth_note_duration)
+        return np.arange(first_note, self.duration, self.bpm.eighth_note)
 
     def map_onsets_to_eighth_notes(self, eigth_note_time_grid: np.ndarray):
         '''Map the eighth note time grid to the onsets.'''
@@ -204,9 +181,9 @@ class DrumTranscriber:
             pos = np.argmin(np.abs(self.note_line - (note + diff_log)))
             diff = self.note_line[pos] - (note + diff_log)
 
-            if np.abs(diff) > self.bpm.thirty_second_note_duration:
+            if np.abs(diff) > self.bpm.thirty_second_note:
                 synced_eighth_note_grid.append(
-                    synced_eighth_note_grid[-1] + self.bpm.eighth_note_duration
+                    synced_eighth_note_grid[-1] + self.bpm.eighth_note
                 )
             else:
                 diff_log = diff_log + diff
@@ -214,7 +191,7 @@ class DrumTranscriber:
         if self.offset:
             [
                 synced_eighth_note_grid.insert(
-                    0, synced_eighth_note_grid[0] - self.bpm.eighth_note_duration
+                    0, synced_eighth_note_grid[0] - self.bpm.eighth_note
                 )
                 for _ in range(self.beats_in_measure)
             ]
@@ -279,7 +256,9 @@ class DrumTranscriber:
     ) -> tuple[str, np.ndarray] | None:
         # retrive the current 8th note and the next 8th note (n and n+1)
         eighth_pair = grid.eighth_notes[i : i + 2]
-        sub_notes = note_line[(note_line > eighth_pair[0]) & (note_line < eighth_pair[1])]
+        sub_notes = note_line[
+            (note_line > eighth_pair[0]) & (note_line < eighth_pair[1])
+        ]
         # Check whether there is any detected onset exist between 2 consecutive eighth notes
         if len(sub_notes) == 0:
             return None
@@ -288,14 +267,18 @@ class DrumTranscriber:
         # the closest note division (16th, 32th, eighth triplets or eighth sixthlet note)
         dist_dict = {'_16': [], '_32': [], '_8_3': [], '_8_6': []}
         sub_notes_dict = {
-            '_16': np.round(np.linspace(grid.eighth_notes[i], grid.eighth_notes[i + 1], 3), 8)[:-1],
-            '_32': np.round(np.linspace(grid.eighth_notes[i], grid.eighth_notes[i + 1], 5), 8)[:-1],
-            '_8_3': np.round(np.linspace(grid.eighth_notes[i], grid.eighth_notes[i + 1], 4), 8)[
-                :-1
-            ],
-            '_8_6': np.round(np.linspace(grid.eighth_notes[i], grid.eighth_notes[i + 1], 7), 8)[
-                :-1
-            ],
+            '_16': np.round(
+                np.linspace(grid.eighth_notes[i], grid.eighth_notes[i + 1], 3), 8
+            )[:-1],
+            '_32': np.round(
+                np.linspace(grid.eighth_notes[i], grid.eighth_notes[i + 1], 5), 8
+            )[:-1],
+            '_8_3': np.round(
+                np.linspace(grid.eighth_notes[i], grid.eighth_notes[i + 1], 4), 8
+            )[:-1],
+            '_8_6': np.round(
+                np.linspace(grid.eighth_notes[i], grid.eighth_notes[i + 1], 7), 8
+            )[:-1],
         }
 
         for sub_note in sub_notes:
@@ -372,7 +355,7 @@ class DrumTranscriber:
         eighth_note_sixlets = np.around(synced_grid.eighth_note_sixlets, 8)
         measure = []
         note_dur = []
-        for note in measure_iter:
+        for notey in measure_iter:
             _div = False
             for div in [
                 (sixteenth_notes, 2, 0.25),
@@ -380,21 +363,23 @@ class DrumTranscriber:
                 (eighth_note_triplets, 3, 1 / 6),
                 (eighth_note_sixlets, 6, 1 / 12),
             ]:
-                if note in div[0]:
-                    pos = np.where(div[0] == note)
+                if notey in div[0]:
+                    pos = np.where(div[0] == notey)
                     pos = pos[0][0]
                     measure.append(list(div[0][pos : pos + div[1]]))
                     note_dur.append([div[2]] * div[1])
                     _div = True
             if not _div:
-                measure.append([note])
+                measure.append([notey])
                 note_dur.append([0.5])
 
         measure = [item for sublist in measure for item in sublist]
         note_dur = [item for sublist in note_dur for item in sublist]
         return measure, note_dur
 
-    def build_stream(self, grid: Grid, pitch_dict: dict[float, list[str]], synced_grid: Grid):
+    def build_stream(
+        self, grid: Grid, pitch_dict: dict[float, list[str]], synced_grid: Grid
+    ):
         '''Builds the stream of time, pitch, and note duration.
 
         This function constructs a stream of time, pitch, and note duration based on the
@@ -407,7 +392,9 @@ class DrumTranscriber:
         stream_note = []
         eighth_notes = np.around(grid.eighth_notes, 8)
         for _ in range(len(eighth_notes) // self.beats_in_measure):
-            measure_iter = list(eighth_notes[measure_log : measure_log + self.beats_in_measure])
+            measure_iter = list(
+                eighth_notes[measure_log : measure_log + self.beats_in_measure]
+            )
             measure, note_dur = self.build_measure(measure_iter, synced_grid)
             stream_time_map.append(measure)
             stream_note.append(note_dur)
@@ -423,12 +410,12 @@ class DrumTranscriber:
 
         for measure in stream_time_map:
             pitch_set = []
-            for note in measure:
-                if note in pitch_dict:
-                    if len(pitch_dict[note]) == 0:
+            for notey in measure:
+                if notey in pitch_dict:
+                    if len(pitch_dict[notey]) == 0:
                         pitch_set.append(['rest'])
                     else:
-                        pitch_set.append(pitch_dict[note])
+                        pitch_set.append(pitch_dict[notey])
                 else:
                     pitch_set.append(['rest'])
             stream_pitch.append(pitch_set)
@@ -438,7 +425,9 @@ class DrumTranscriber:
         '''Converts the stream data into a format suitable for music21.'''
         music21_data = []
         for i in range(len(stream_time_map)):
-            music21_data.append(list(zip(stream_note[i], stream_pitch[i], strict=False)))
+            music21_data.append(
+                list(zip(stream_note[i], stream_pitch[i], strict=False))
+            )
         return music21_data
 
     def duration_set(self, pred_note, n) -> note.Note:
@@ -474,7 +463,10 @@ class DrumTranscriber:
 
         s = stream.Stream()
         s.insert(
-            0, meter.TimeSignature(f'{int(self.beats_in_measure / 2)}/{self.time_sig.note_value}')
+            0,
+            meter.TimeSignature(
+                f'{int(self.beats_in_measure / 2)}/{self.time_sig.note_value}'
+            ),
         )
         s.insert(0, metadata.Metadata())
         if song_title is None:
@@ -511,7 +503,7 @@ class DrumTranscriber:
         s = s.makeMeasures()
         return s
 
-    def write_sheet(self, fpath: str):
+    def write_sheet(self, fpath: str | Path):
         '''Writes the sheet music to a PDF file.
 
         Args:

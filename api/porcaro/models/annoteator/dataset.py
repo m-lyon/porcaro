@@ -9,7 +9,7 @@ import librosa
 class DrumHitPredictDataset(torch.utils.data.Dataset):
     '''Dataset for drum hits.'''
 
-    def __init__(self, data: pd.DataFrame, sr: int) -> None:
+    def __init__(self, data: pd.DataFrame, sr: int | float) -> None:
         '''Initialize the DrumHitDataset.
 
         Args:
@@ -20,7 +20,9 @@ class DrumHitPredictDataset(torch.utils.data.Dataset):
         self.x = torch.tensor(
             np.stack(
                 [
-                    librosa.feature.melspectrogram(y=audio_clip, sr=sr, n_mels=128, fmax=8000)
+                    librosa.feature.melspectrogram(
+                        y=audio_clip, sr=sr, n_mels=128, fmax=8000
+                    )
                     for audio_clip in data.audio_clip
                 ],
                 axis=0,
