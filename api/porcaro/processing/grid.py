@@ -1,39 +1,41 @@
+'''Provides functions and classes for music grid processing.
+
+Includes functionalities for creating and syncing eighth note grids,
+detecting onsets in audio tracks, and managing musical subdivisions.
+'''
+
 from dataclasses import dataclass
 
-import librosa
 import numpy as np
 import pandas as pd
+import librosa
 from music21 import duration
 
-
-from porcaro.processing.bpm import BPM
-from porcaro.processing.utils import SongData, TimeSignature
+from porcaro.utils import BPM
+from porcaro.utils import SongData
+from porcaro.utils import TimeSignature
 
 
 def get_eighth_note_time_grid(
     song_data: SongData,
-    start_time: float,
+    drum_start_time: float,
 ) -> np.ndarray:
     '''Generates an eighth note time grid.
 
     Args:
-        duration (float): The duration of the audio in seconds.
-        bpm (BPM): The BPM of the audio.
-        start_time (float): The start time of the beat in seconds. This is the time
-            that the grid is aligned to.
-        start_beat (float): The beat number, relative to the time signature,
-        that the `start_time` corresponds to. This is used to calculate where (in time)
-        the grid starts.
-        time_sig (TimeSignature): The time signature of the audio.
+        song_data (SongData): The song metadata including bpm, sample rate, and
+            duration.
+        drum_start_time (float): The time in seconds when the first drum hit occurs.
 
     Returns:
         np.ndarray: An array of time values for the eighth note grid.
+
     '''
     eighth_note_start_beat = song_data.time_signature.eighth_note_beat(
         song_data.start_beat
     )
     measure_start_offset = (eighth_note_start_beat - 1) * song_data.bpm.eighth_note
-    measure_start = start_time - measure_start_offset
+    measure_start = drum_start_time - measure_start_offset
     assert measure_start >= 0, (
         'Measure start cannot be negative. '
         'Check the start_beat and start_onset parameters.'
@@ -45,18 +47,21 @@ def get_eighth_note_grid_from_df(df: pd.DataFrame, song_data: SongData) -> np.nd
     '''Generates an eighth note time grid from a DataFrame.
 
     Args:
-        df (pd.DataFrame): The input DataFrame containing audio segment information.
-        sample_rate (int | float): The sample rate of the audio.
-        bpm (BPM): The BPM of the audio.
-        time_sig (TimeSignature): The time signature of the audio.
+        df (pd.DataFrame): DataFrame containing onset information with a 'peak_sample'
+            column.
+        song_data (SongData): The song metadata including bpm, sample rate, and
+            duration.
 
     Returns:
         np.ndarray: An array of time values for the eighth note grid.
+
     '''
     # Extract relevant information from the DataFrame
-    start_time = librosa.samples_to_time(df.peak_sample[0], sr=song_data.sample_rate)
+    drum_start_time = librosa.samples_to_time(
+        df.peak_sample[0], sr=song_data.sample_rate
+    )
 
-    return get_eighth_note_time_grid(song_data, start_time)
+    return get_eighth_note_time_grid(song_data, drum_start_time)
 
 
 def sync_eighth_note_grid_to_onsets(
@@ -81,8 +86,8 @@ def sync_eighth_note_grid_to_onsets(
 
     Returns:
         np.ndarray: The synced eighth note grid.
-    '''
 
+    '''
     # Efficiently sync grid to onsets using sorted arrays
     synced_grid = np.copy(grid)
     onset_times = np.asarray(onset_times)
@@ -104,38 +109,46 @@ def sync_eighth_note_grid_to_onsets(
 
 
 class Duration:
-    '''Factory class for creating music21 Duration objects based on note types'''
+    '''Factory class for creating music21 Duration objects based on note types.'''
 
     @staticmethod
     def eighth_note():
+        '''Returns an eighth note duration.'''
         return duration.Duration(1 / 2)
 
     @staticmethod
     def eighth_note_triplet():
+        '''Returns an eighth note triplet duration.'''
         return duration.Duration(1 / 3)
 
     @staticmethod
     def dotted_eighth_note():
+        '''Returns a dotted eighth note duration.'''
         return duration.Duration(3 / 4)
 
     @staticmethod
     def sixteenth_note():
+        '''Returns a sixteenth note duration.'''
         return duration.Duration(1 / 4)
 
     @staticmethod
     def sixteenth_note_triplet():
+        '''Returns a sixteenth note triplet duration.'''
         return duration.Duration(1 / 6)
 
     @staticmethod
     def dotted_sixteenth_note():
+        '''Returns a dotted sixteenth note duration.'''
         return duration.Duration(3 / 8)
 
     @staticmethod
     def thirty_second_note():
+        '''Returns a thirty-second note duration.'''
         return duration.Duration(1 / 8)
 
     @staticmethod
     def dotted_thirty_second_note():
+        '''Returns a dotted thirty-second note duration.'''
         return duration.Duration(3 / 16)
 
 
@@ -264,9 +277,7 @@ class EighthNote:
             # TODO: walk through the notes and assign them to the closest
             # subdivision
             pass
-        elif closest_match == 3:
-            pass
-        elif closest_match == 6:
+        elif closest_match == 3 or closest_match == 6:
             pass
 
 
@@ -279,6 +290,8 @@ class Subdivision:
 
 
 class EighthNoteSubdivisions:
+    '''Class representing eighth note subdivisions.'''
+
     def __init__(self, start_time: float, end_time: float, time_sig: TimeSignature):
         '''Initialize the EighthNoteSubdivisions class.'''
         self.start_time = start_time
@@ -293,6 +306,7 @@ class EighthNoteSubdivisions:
         Returns:
             dict[str, np.ndarray]: A dictionary with keys as subdivision names and
             values as arrays of matched notes.
+
         '''
         pass
 
@@ -300,18 +314,139 @@ class EighthNoteSubdivisions:
     def subdivisions_by_num_notes(self) -> dict[int, list[Subdivision]]:
         '''Returns a dictionary of subdivisions by number of notes.'''
         return {
-            1: [self.eighth_note()],
-            2: [self.dotted_sixteenth_to_thirty_second()],
-            3: [],
-            4: [],
+            1: [
+                self.thirty_second_note(),
+                self.sixteenth_note(),
+                self.dotted_sixteenth_note(),
+                self.eighth_note(),
+            ],
+            2: [
+                self.two_thirty_second_notes(),
+                self.sixteenth_and_thirty_second(),
+                self.thirty_second_and_sixteenth(),
+                self.dotted_sixteenth_and_thirty_second(),
+                self.two_sixteenth_notes(),
+                self.thirty_second_and_dotted_sixteenth(),
+            ],
+            3: [
+                self.three_thirty_second_notes(),
+                self.sixteenth_and_two_thirty_seconds(),
+                self.thirty_second_and_sixteenth_and_thirty_second(),
+                self.two_thirty_second_notes_and_sixteenth(),
+            ],
+            4: [self.four_thirty_second_notes()],
         }
 
-    def eighth_note(self) -> Subdivision:
+    def thirty_second_note(self) -> Subdivision:
+        '''Returns the thirty-second note subdivision.
+
+        # 0001
+        '''
         return Subdivision(
-            times=np.array([self.start_time]), durations=[Duration.eighth_note()]
+            times=np.array([self.start_time + self.bpm.dotted_sixteenth_note]),
+            durations=[Duration.thirty_second_note()],
         )
 
-    def dotted_sixteenth_to_thirty_second(self) -> Subdivision:
+    def sixteenth_note(self) -> Subdivision:
+        '''Returns the sixteenth note subdivision.
+
+        # 0010
+        '''
+        return Subdivision(
+            times=np.array([self.start_time + self.bpm.sixteenth_note]),
+            durations=[Duration.sixteenth_note()],
+        )
+
+    def two_thirty_second_notes(self) -> Subdivision:
+        '''Returns the two thirty-second notes subdivision.
+
+        # 0011
+        '''
+        return Subdivision(
+            times=np.array(
+                [
+                    self.start_time + self.bpm.sixteenth_note,
+                    self.start_time + self.bpm.dotted_sixteenth_note,
+                ]
+            ),
+            durations=[Duration.thirty_second_note(), Duration.thirty_second_note()],
+        )
+
+    def dotted_sixteenth_note(self) -> Subdivision:
+        '''Returns the dotted sixteenth note subdivision.
+
+        # 0100
+        '''
+        return Subdivision(
+            times=np.array([self.start_time + self.bpm.thirty_second_note]),
+            durations=[Duration.dotted_sixteenth_note()],
+        )
+
+    def sixteenth_and_thirty_second(self) -> Subdivision:
+        '''Returns the sixteenth note and thirty-second note subdivision.
+
+        # 0101
+        '''
+        return Subdivision(
+            times=np.array(
+                [
+                    self.start_time + self.bpm.thirty_second_note,
+                    self.start_time + self.bpm.dotted_sixteenth_note,
+                ]
+            ),
+            durations=[Duration.sixteenth_note(), Duration.thirty_second_note()],
+        )
+
+    def thirty_second_and_sixteenth(self) -> Subdivision:
+        '''Returns the thirty-second note and sixteenth note subdivision.
+
+        # 0110
+        '''
+        return Subdivision(
+            times=np.array(
+                [
+                    self.start_time + self.bpm.thirty_second_note,
+                    self.start_time + self.bpm.sixteenth_note,
+                ]
+            ),
+            durations=[Duration.thirty_second_note(), Duration.sixteenth_note()],
+        )
+
+    def three_thirty_second_notes(self) -> Subdivision:
+        '''Returns the three thirty-second notes subdivision.
+
+        # 0111
+        '''
+        return Subdivision(
+            times=np.array(
+                [
+                    self.start_time + self.bpm.thirty_second_note,
+                    self.start_time + self.bpm.sixteenth_note,
+                    self.start_time + self.bpm.dotted_sixteenth_note,
+                ]
+            ),
+            durations=[
+                Duration.thirty_second_note(),
+                Duration.thirty_second_note(),
+                Duration.thirty_second_note(),
+            ],
+        )
+
+    def eighth_note(self) -> Subdivision:
+        '''Returns the eighth note subdivision.
+
+        # 1000
+        '''
+        return Subdivision(
+            times=np.array([self.start_time]),
+            durations=[Duration.eighth_note()],
+        )
+
+    def dotted_sixteenth_and_thirty_second(self) -> Subdivision:
+        '''Returns the dotted sixteenth note and thirty-second note subdivision.
+
+        # 1001
+        '''
         return Subdivision(
             times=np.array(
                 [
@@ -320,4 +455,116 @@ class EighthNoteSubdivisions:
                 ]
             ),
             durations=[Duration.dotted_sixteenth_note(), Duration.thirty_second_note()],
+        )
+
+    def two_sixteenth_notes(self) -> Subdivision:
+        '''Returns the two sixteenth notes subdivision.
+
+        # 1010
+        '''
+        return Subdivision(
+            times=np.array(
+                [
+                    self.start_time,
+                    self.start_time + self.bpm.sixteenth_note,
+                ]
+            ),
+            durations=[Duration.sixteenth_note(), Duration.sixteenth_note()],
+        )
+
+    def sixteenth_and_two_thirty_seconds(self) -> Subdivision:
+        '''Returns the sixteenth note and two thirty-second notes subdivision.
+
+        # 1011
+        '''
+        return Subdivision(
+            times=np.array(
+                [
+                    self.start_time,
+                    self.start_time + self.bpm.sixteenth_note,
+                    self.start_time + self.bpm.dotted_sixteenth_note,
+                ]
+            ),
+            durations=[
+                Duration.sixteenth_note(),
+                Duration.thirty_second_note(),
+                Duration.thirty_second_note(),
+            ],
+        )
+
+    def thirty_second_and_dotted_sixteenth(self) -> Subdivision:
+        '''Returns the thirty-second note and dotted sixteenth note subdivision.
+
+        # 1100
+        '''
+        return Subdivision(
+            times=np.array(
+                [
+                    self.start_time,
+                    self.start_time + self.bpm.thirty_second_note,
+                ]
+            ),
+            durations=[Duration.thirty_second_note(), Duration.dotted_sixteenth_note()],
+        )
+
+    def thirty_second_and_sixteenth_and_thirty_second(self) -> Subdivision:
+        '''Returns the thirty-second, sixteenth, and thirty-second note subdivision.
+
+        # 1101
+        '''
+        return Subdivision(
+            times=np.array(
+                [
+                    self.start_time,
+                    self.start_time + self.bpm.thirty_second_note,
+                    self.start_time + self.bpm.dotted_sixteenth_note,
+                ]
+            ),
+            durations=[
+                Duration.thirty_second_note(),
+                Duration.sixteenth_note(),
+                Duration.thirty_second_note(),
+            ],
+        )
+
+    def two_thirty_second_notes_and_sixteenth(self) -> Subdivision:
+        '''Returns the two thirty-second notes and sixteenth note subdivision.
+
+        # 1110
+        '''
+        return Subdivision(
+            times=np.array(
+                [
+                    self.start_time,
+                    self.start_time + self.bpm.thirty_second_note,
+                    self.start_time + self.bpm.sixteenth_note,
+                ]
+            ),
+            durations=[
+                Duration.thirty_second_note(),
+                Duration.thirty_second_note(),
+                Duration.sixteenth_note(),
+            ],
+        )
+
+    def four_thirty_second_notes(self) -> Subdivision:
+        '''Returns the four thirty-second notes subdivision.
+
+        # 1111
+        '''
+        return Subdivision(
+            times=np.array(
+                [
+                    self.start_time,
+                    self.start_time + self.bpm.thirty_second_note,
+                    self.start_time + self.bpm.sixteenth_note,
+                    self.start_time + self.bpm.dotted_sixteenth_note,
+                ]
+            ),
+            durations=[
+                Duration.thirty_second_note(),
+                Duration.thirty_second_note(),
+                Duration.thirty_second_note(),
+                Duration.thirty_second_note(),
+            ],
         )

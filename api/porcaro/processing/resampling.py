@@ -1,6 +1,8 @@
+'''Module for resampling audio clips in a DataFrame.'''
+
 import numpy as np
-import librosa
 import pandas as pd
+import librosa
 
 
 def resample_to_length(
@@ -22,8 +24,8 @@ def resample_to_length(
 def apply_resampling_to_dataframe(df: pd.DataFrame, target_length: int) -> None:
     '''Apply resampling to each audio clip in the DataFrame.'''
     df[['audio_clip', 'sampling_rate']] = df.apply(
-        lambda x: resample_to_length(
-            x['audio_clip'], target_length, x['sampling_rate']
+        lambda x: pd.Series(
+            resample_to_length(x['audio_clip'], target_length, x['sampling_rate'])
         ),
         axis=1,
     )

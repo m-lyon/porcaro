@@ -9,6 +9,7 @@ from pedalboard import Compressor
 from pedalboard import Pedalboard  # type: ignore
 from librosa.feature import rhythm
 
+from porcaro.utils import SongData
 from porcaro.processing.utils import get_note_duration
 from porcaro.processing.window import get_fixed_window_size
 
@@ -78,24 +79,25 @@ def get_hit_onsets(
 ):
     '''Calculates the onsets of drum hits in a given track.
 
-    This function detects and extracts onset from a drum track and format the onsets into a df for
-    prediction task
+    This function detects and extracts onset from a drum track and format the onsets
+    into a df for prediction task
 
     Args:
         drum_track (np.ndarray): The extracted drum track
         sample_rate (int): The sampling rate of the drum track
-        estimated_bpm (int): Beats per minute. It is best to provide a estimated bpm to improve the
-            bpm detection accuracy
-        resolution (int): Either 8/16/32. Default is 16. Control the window size of the onset sound
-            clip if "fixed_clip_length" is not set. 8 means the window size equal to the 8th note
-            duration (calculated by the bpm value), etc.
-        fixed_clip_length (bool): Default False. Sets window_size of the clip to 0.2 seconds as
-            default, overriding resolution setting if set to True.
-        hop_length (int): Default 1024. 1024 should work in most cases, this value will be auto
-            adjusted to 512 if the song is really fast (>110 bpm)
-        backtrack (bool): Default False. if True, the detected onset position will roll back to the
-            previous local minima to capture the full sound. However, after a few testing, this
-            does not work well for drum sound. Only turn this on in special cases!
+        estimated_bpm (int): Beats per minute. It is best to provide a estimated bpm to
+            improve the bpm detection accuracy
+        resolution (int): Either 8/16/32. Default is 16. Control the window size of the
+            onset sound clip if "fixed_clip_length" is not set. 8 means the window size
+            equal to the 8th note duration (calculated by the bpm value), etc.
+        fixed_clip_length (bool): Default False. Sets window_size of the clip to 0.2
+            seconds as default, overriding resolution setting if set to True.
+        hop_length (int): Default 1024. 1024 should work in most cases, this value will
+            be auto adjusted to 512 if the song is really fast (>110 bpm)
+        backtrack (bool): Default False. if True, the detected onset position will roll
+            back to the previous local minima to capture the full sound. However, after
+            a few testing, this does not work well for drum sound. Only turn this on in
+            special cases!
 
     Returns:
         df (pd.DataFrame): Dataframe containing onsets found in the track
@@ -130,9 +132,9 @@ def get_hit_onsets(
         onset_samples, peak_samples = _get_onsets(
             drum_track, sample_rate, 512, backtrack
         )
-
+    song_data = SongData(bpm=bpm, sample_rate=sample_rate)
     window_size = get_fixed_window_size(
-        resolution if not fixed_clip_length else 0.18, bpm, sample_rate, onset_samples
+        resolution if not fixed_clip_length else 0.18, song_data, onset_samples
     )
 
     if not backtrack:

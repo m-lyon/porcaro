@@ -1,9 +1,10 @@
 import logging
-import numpy as np
-import librosa
-import pandas as pd
 
-from porcaro.processing.bpm import BPM
+import numpy as np
+import pandas as pd
+import librosa
+
+from porcaro.utils import BPM
 
 logger = logging.getLogger(__name__)
 

@@ -4,7 +4,6 @@ import logging
 from copy import deepcopy
 from pathlib import Path
 
-
 import numpy as np
 import pandas as pd
 import librosa
@@ -14,10 +13,9 @@ from music21 import stream
 from music21 import duration
 from music21 import metadata
 from music21 import percussion
-from porcaro.processing.utils import TimeSignature
 
-from porcaro.processing.bpm import BPM
-
+from porcaro.utils import TimeSignature
+from porcaro.utils.bpm import BPM
 
 logger = logging.getLogger(__name__)
 
@@ -93,7 +91,7 @@ class DrumTranscriber:
         predictions: pd.DataFrame,
         duration: float,
         bpm: float,
-        sample_rate: int,
+        sample_rate: int | float,
         time_sig: TimeSignature,
         note_offset: int | None = None,
         song_title: None | str = None,

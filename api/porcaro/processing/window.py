@@ -1,9 +1,13 @@
+'''Module for calculating fixed window sizes.'''
+
+import logging
+
 import numpy as np
 import pandas as pd
 import librosa
-import logging
 
-from porcaro.processing.utils import SongData, get_note_duration
+from porcaro.utils import SongData
+from porcaro.processing.utils import get_note_duration
 
 logger = logging.getLogger(__name__)
 
@@ -21,11 +25,11 @@ def get_fixed_window_size(
             32. A float value represents the size in seconds. A None value means
             that the window size will be calculated using the 25% quantile of all time
             differences between each detected drum hit.
-        bpm (float): Beats per minute of the audio track.
-        sample_rate (int | float): Sample rate of the audio track.
+        song_data (SongData): Song metadata including bpm, sample rate, and duration.
         onsets (np.ndarray): Array of onset samples.
+
     '''
-    assert isinstance(resolution, (int, float, type(None))), (
+    assert isinstance(resolution, int | float | type(None)), (
         'resolution must be either an integer, a float, or None.'
     )
     if isinstance(resolution, float):

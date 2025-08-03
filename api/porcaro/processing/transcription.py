@@ -1,16 +1,20 @@
+'''Module for transcribing drum audio files into a structured format.'''
+
+import logging
 from pathlib import Path
 
 import librosa
-import logging
 
-from porcaro.models.annoteator.prediction import run_prediction
-from porcaro.processing.bpm import BPM
-from porcaro.processing.compression import apply_compression_to_dataframe
-from porcaro.processing.formatting import format_for_prediction
+from porcaro.utils import SongData
+from porcaro.utils import TimeSignature
+from porcaro.utils.bpm import BPM
 from porcaro.processing.onset import get_librosa_onsets
-from porcaro.processing.resampling import apply_resampling_to_dataframe
-from porcaro.processing.utils import SongData, TimeSignature
 from porcaro.processing.window import get_fixed_window_size
+from porcaro.processing.matching import eighth_note_grid_matching
+from porcaro.processing.formatting import format_for_prediction
+from porcaro.processing.resampling import apply_resampling_to_dataframe
+from porcaro.processing.compression import apply_compression_to_dataframe
+from porcaro.models.annoteator.prediction import run_prediction
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +45,7 @@ def transcribe_drum_audio(
             differences between each detected drum hit. Default is 16.
 
     Returns:
+
     '''
     # Load the audio file
     track, sample_rate = librosa.load(fpath, offset=offset, duration=duration)
@@ -64,3 +69,5 @@ def transcribe_drum_audio(
     apply_compression_to_dataframe(df)
     # Run prediction
     df = run_prediction(df, song_data.sample_rate)
+    # Match notes via eighth note grid algorithm
+    eighth_note_grid_matching(df, song_data)
