@@ -4,11 +4,13 @@ import logging
 from pathlib import Path
 
 import librosa
+import music21
 
 from porcaro.utils import SongData
 from porcaro.utils import TimeSignature
 from porcaro.utils.bpm import BPM
 from porcaro.processing.onset import get_librosa_onsets
+from porcaro.processing.sheet import construct_sheet
 from porcaro.processing.window import get_fixed_window_size
 from porcaro.processing.matching import eighth_note_grid_matching
 from porcaro.processing.formatting import format_for_prediction
@@ -26,7 +28,7 @@ def transcribe_drum_audio(
     offset: float = 0.0,
     duration: float | None = None,
     resolution: int | float | None = 16,
-):
+) -> music21.stream.Stream:
     '''Transcribes an audio file to a drum transcription.
 
     Args:
@@ -45,6 +47,8 @@ def transcribe_drum_audio(
             differences between each detected drum hit. Default is 16.
 
     Returns:
+        music21.stream.Stream: The constructed music21 stream containing the
+            transcription of the drum audio.
 
     '''
     # Load the audio file
@@ -70,4 +74,7 @@ def transcribe_drum_audio(
     # Run prediction
     df = run_prediction(df, song_data.sample_rate)
     # Match notes via eighth note grid algorithm
-    eighth_note_grid_matching(df, song_data)
+    matched_durations, matched_notes = eighth_note_grid_matching(df, song_data)
+    # Construct the sheet music
+    sheet = construct_sheet(matched_durations, matched_notes, time_sig)
+    return sheet

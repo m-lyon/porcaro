@@ -11,6 +11,17 @@ from porcaro.models.annoteator.dataset import DrumHitPredictDataset
 def run_prediction(
     data: pd.DataFrame, sr: int | float, device: str = 'cpu'
 ) -> pd.DataFrame:
+    '''Runs predictions on the provided data using the Annoteator model.
+
+    Args:
+        data (pd.DataFrame): DataFrame containing audio clips and metadata.
+        sr (int | float): Sampling rate of the audio clips.
+        device (str): Device to run the model on ('cpu' or 'cuda').
+
+    Returns:
+        pd.DataFrame: DataFrame with predictions added.
+
+    '''
     model = load_pretrained_model().to(device)
 
     dataset = DrumHitPredictDataset(data, sr)
@@ -36,14 +47,12 @@ def run_prediction(
 
             predictions.append(outputs)
 
-    drum_hits = ['SD', 'HH', 'KD', 'RC', 'TT', 'CC']
+    drum_hits = np.array(['SD', 'HH', 'KD', 'RC', 'TT', 'CC'])
     predictions = np.concatenate(predictions, axis=0)
-    prediction = pd.DataFrame(predictions, columns=drum_hits)
+    masked_hits = np.where(predictions == 1.0, drum_hits, '')
+    hits = [row[row != ''].tolist() for row in masked_hits]
 
-    data = data.reset_index()
-    prediction.reset_index(inplace=True)
+    data = data.copy()
+    data['hits'] = hits
 
-    result = data.merge(prediction, left_on='index', right_on='index')
-    result.drop(columns=['index'], inplace=True)
-
-    return result
+    return data

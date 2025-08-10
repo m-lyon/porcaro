@@ -55,6 +55,6 @@ def load_pretrained_model() -> AnnoteatorModule:
 
     '''
     model = AnnoteatorModule()
-    model.load_state_dict(torch.load(WEIGHTS_PATH))
+    model.load_state_dict(torch.load(WEIGHTS_PATH, weights_only=True))
     model.eval()
     return model
