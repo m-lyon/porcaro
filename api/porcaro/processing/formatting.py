@@ -5,7 +5,7 @@ import pandas as pd
 import librosa
 
 from porcaro.utils import SongData
-from porcaro.processing.utils import get_note_duration
+from porcaro.processing.duration import get_note_duration
 
 
 def format_for_prediction(

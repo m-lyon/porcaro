@@ -10,8 +10,8 @@ from pedalboard import Pedalboard  # type: ignore
 from librosa.feature import rhythm
 
 from porcaro.utils import SongData
-from porcaro.processing.utils import get_note_duration
 from porcaro.processing.window import get_fixed_window_size
+from porcaro.processing.duration import get_note_duration
 
 logger = logging.getLogger(__name__)
 
