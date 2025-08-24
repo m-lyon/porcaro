@@ -123,6 +123,6 @@ def get_notes_within_tolerance(
     # Find the first onset that is within the tolerance of the start time
     start_idx = np.searchsorted(onset_times, start_time - tolerance, side='left')
     # Find the last onset that is within the tolerance of the end time
-    end_idx = np.searchsorted(onset_times, end_time + tolerance, side='right')
+    end_idx = np.searchsorted(onset_times, end_time + tolerance, side='left')
     # Return the notes within the tolerance
     return note_predictions[start_idx:end_idx].copy()
