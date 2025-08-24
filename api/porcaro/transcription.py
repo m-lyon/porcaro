@@ -23,7 +23,7 @@ from porcaro.models.annoteator.prediction import run_prediction
 logger = logging.getLogger(__name__)
 
 
-def _load_song_data(
+def load_song_data(
     fpath: Path | str,
     time_sig: TimeSignature,
     start_beat: int | float = 1,
@@ -58,7 +58,7 @@ def _load_song_data(
     return track, song_data
 
 
-def _run_prediction_on_track(
+def run_prediction_on_track(
     track: np.ndarray,
     onsets: np.ndarray,
     song_data: SongData,
@@ -126,12 +126,12 @@ def transcribe_drum_audio(
 
     '''
     # Load the audio file and extract song metadata
-    track, song_data = _load_song_data(fpath, time_sig, start_beat, offset, duration)
+    track, song_data = load_song_data(fpath, time_sig, start_beat, offset, duration)
     # Get onsets
     onsets = get_librosa_onsets(
         track, song_data.sample_rate, hop_length=1024 if song_data.bpm < 110 else 512
     )
-    df = _run_prediction_on_track(track, onsets, song_data, resolution)
+    df = run_prediction_on_track(track, onsets, song_data, resolution)
     # Match notes via eighth note grid algorithm
     matched_durations, matched_notes = eighth_note_grid_matching(df, song_data)
     # Construct the sheet music
