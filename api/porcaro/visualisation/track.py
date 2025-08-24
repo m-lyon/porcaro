@@ -37,17 +37,18 @@ def plot_track(
     return fig, ax
 
 
-def add_grid(ax: Axes, grid: np.ndarray, colour: str = 'r') -> None:
+def add_grid(ax: Axes, grid: np.ndarray, colour: str = 'r', start: float = 0) -> None:
     '''Add a grid to the plot.
 
     Args:
         ax (matplotlib.axes.Axes): The axes to add the grid to.
         grid (np.ndarray): The grid to add.
         colour (str): The color of the grid lines.
+        start (float): The start time in seconds.
 
     '''
     ax.vlines(
-        grid,
+        grid - start,
         ymin=ax.get_ylim()[0],
         ymax=ax.get_ylim()[1],
         color=colour,
@@ -61,26 +62,59 @@ def add_onsets(
     ax: Axes,
     onsets: pd.Series | np.ndarray,
     colour: str = 'r',
+    start: float = 0,
 ) -> None:
     '''Add onset lines to the plot.
 
     Args:
         ax (matplotlib.axes.Axes): The axes to add the onsets to.
         onsets (pd.Series | np.ndarray): The onset times in seconds.
-        sr (int | float): The sample rate of the audio.
         start (float): The start time in seconds.
         colour (str): The color of the onset lines.
+        start (float): The start time in seconds.
 
     '''
     if isinstance(onsets, pd.Series):
         onsets = onsets.to_numpy()
 
     ax.vlines(
-        onsets,
+        onsets - start,
         ymin=ax.get_ylim()[0] / 2,
         ymax=ax.get_ylim()[1] / 2,
         color=colour,
         alpha=0.9,
         linestyle='solid',
         label='Onsets',
+    )
+
+
+def add_measures(
+    ax: Axes,
+    grid: np.ndarray,
+    grid_type: str = 'eighth',
+    colour: str = 'g',
+    start: float = 0,
+) -> None:
+    '''Add measure lines to the plot.
+
+    Args:
+        ax (matplotlib.axes.Axes): The axes to add the measures to.
+        measures (np.ndarray): The measure times in seconds.
+        start (float): The start time in seconds.
+        colour (str): The color of the measure lines.
+        start (float): The start time in seconds.
+
+    '''
+    if grid_type != 'eighth':
+        raise NotImplementedError('Only eighth note grids are supported.')
+    # Measures are every 8th note
+    grid = grid[::8]
+    ax.vlines(
+        grid - start,
+        ymin=ax.get_ylim()[0],
+        ymax=ax.get_ylim()[1],
+        color=colour,
+        alpha=0.7,
+        linestyle='dashdot',
+        label='Measures',
     )
