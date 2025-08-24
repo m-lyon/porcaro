@@ -13,6 +13,7 @@ dependencies = [
     "pandas>=2.2.3",
     "pedalboard>=0.9.17",
     "torch>2.2",
+    "uvicorn[standard]>=0.31.1",
 ]
 
 [build-system]
