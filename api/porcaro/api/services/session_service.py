@@ -8,6 +8,7 @@ import tempfile
 import shutil
 
 from porcaro.api.models import LabelingSession, AudioClip
+from porcaro.api.services.labeled_data_service import labeled_data_service
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +71,14 @@ class SessionStore:
             if temp_dir.exists():
                 shutil.rmtree(temp_dir)
             del self._temp_dirs[session_id]
+
+        # Clean up labeled data - import here to avoid circular imports
+        try:
+            labeled_data_service.remove_session(session_id)
+        except Exception as e:
+            logger.error(
+                f'Error removing labeled data for session {session_id}: {str(e)}'
+            )
 
         # Remove from stores
         del self._sessions[session_id]

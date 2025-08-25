@@ -12,6 +12,8 @@ dependencies = [
     "music21<8",
     "pandas>=2.2.3",
     "pedalboard>=0.9.17",
+    "python-multipart>=0.0.20",
+    "soundfile>=0.13.1",
     "torch>2.2",
     "uvicorn[standard]>=0.31.1",
 ]

@@ -178,3 +178,6 @@ scratch/
 
 # don't track model weights
 *.pt
+
+# labeled data directory - contains user-generated training data
+labeled_data/

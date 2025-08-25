@@ -6,7 +6,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, status, Query
 from fastapi.responses import Response
 
-from models import AudioClip, ClipListResponse
+from porcaro.api.models import AudioClip, ClipListResponse
 from porcaro.api.services.session_service import session_store
 from porcaro.api.services.audio_service import (
     get_clip_audio_data,
