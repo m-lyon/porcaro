@@ -8,16 +8,29 @@ import { globalIgnores } from 'eslint/config';
 export default tseslint.config([
     globalIgnores(['dist']),
     {
-        files: ['**/*.{ts,tsx}'],
+        files: ['**/*.{ts,tsx,js,jsx}'],
         extends: [
             js.configs.recommended,
             tseslint.configs.recommended,
             reactHooks.configs['recommended-latest'],
             reactRefresh.configs.vite,
+            'plugin:prettier/recommended',
         ],
         languageOptions: {
             ecmaVersion: 2020,
             globals: globals.browser,
+        },
+        rules: {
+            'prettier/prettier': [
+                'error',
+                {
+                    singleQuote: true,
+                    jsxSingleQuote: true,
+                    printWidth: 80,
+                    tabWidth: 4,
+                    trailingComma: 'es5',
+                },
+            ],
         },
     },
 ]);
