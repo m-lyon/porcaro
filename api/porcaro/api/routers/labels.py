@@ -3,10 +3,14 @@
 import logging
 from datetime import datetime
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter
+from fastapi import HTTPException
+from fastapi import status
 from fastapi.responses import JSONResponse
 
-from porcaro.api.models import LabelClipRequest, AudioClip, ExportDataResponse
+from porcaro.api.models import AudioClip
+from porcaro.api.models import LabelClipRequest
+from porcaro.api.models import ExportDataResponse
 from porcaro.api.services.session_service import session_store
 from porcaro.api.services.labeled_data_service import labeled_data_service
 
@@ -49,7 +53,8 @@ async def label_clip(session_id: str, clip_id: str, request: LabelClipRequest):
         success = labeled_data_service.save_labeled_clip(session, clip, session_data)
         if not success:
             logger.warning(f'Failed to save labeled clip {clip_id} to disk')
-            # Continue execution - we still return the updated clip even if disk save failed
+            # Continue execution - we still return the updated clip even if disk save
+            # failed
 
         logger.info(f'Clip {clip_id} labeled with {request.labels} and saved to disk')
         return clip
@@ -62,7 +67,7 @@ async def label_clip(session_id: str, clip_id: str, request: LabelClipRequest):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail='Failed to save label',
-        )
+        ) from e
 
 
 @router.delete('/{session_id}/clips/{clip_id}/label')
@@ -107,7 +112,7 @@ async def remove_clip_label(session_id: str, clip_id: str):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail='Failed to remove label',
-        )
+        ) from e
 
 
 @router.get('/{session_id}/export', response_model=ExportDataResponse)
@@ -155,15 +160,24 @@ async def export_labeled_data(session_id: str, format: str = 'json'):
                 'clips': [
                     {
                         'clip_id': clip_meta['clip_id'],
-                        'sample_start': clip_meta['clip_info']['sample_start'],
-                        'sample_end': clip_meta['clip_info']['sample_end'],
+                        'start_sample': clip_meta['clip_info']['start_sample'],
+                        'start_time': clip_meta['clip_info']['start_time'],
+                        'end_sample': clip_meta['clip_info']['end_sample'],
+                        'end_time': clip_meta['clip_info']['end_time'],
                         'sample_rate': clip_meta['clip_info']['sample_rate'],
                         'peak_sample': clip_meta['clip_info']['peak_sample'],
                         'peak_time': clip_meta['clip_info']['peak_time'],
                         'predicted_labels': clip_meta['clip_info']['predicted_labels'],
                         'user_label': clip_meta['clip_info']['user_label'],
                         'labeled_at': clip_meta['clip_info']['labeled_at'],
-                        'audio_file_path': f"labeled_data/{session_id}/{clip_meta['clip_id']}/{clip_meta['files']['audio_file']}",
+                        'model_input_audio_file_path': '/'.join(
+                            [
+                                'labeled_data',
+                                session_id,
+                                clip_meta['clip_id'],
+                                clip_meta['files']['model_input_audio_file'],
+                            ]
+                        ),
                     }
                     for clip_meta in labeled_clips_metadata
                 ],
@@ -174,8 +188,10 @@ async def export_labeled_data(session_id: str, format: str = 'json'):
             export_data = [
                 {
                     'clip_id': clip_meta['clip_id'],
-                    'sample_start': clip_meta['clip_info']['sample_start'],
-                    'sample_end': clip_meta['clip_info']['sample_end'],
+                    'start_sample': clip_meta['clip_info']['start_sample'],
+                    'start_time': clip_meta['clip_info']['start_time'],
+                    'end_sample': clip_meta['clip_info']['end_sample'],
+                    'end_time': clip_meta['clip_info']['end_time'],
                     'peak_time': clip_meta['clip_info']['peak_time'],
                     'predicted_labels': ','.join(
                         clip_meta['clip_info']['predicted_labels']
@@ -184,7 +200,14 @@ async def export_labeled_data(session_id: str, format: str = 'json'):
                     if clip_meta['clip_info']['user_label']
                     else '',
                     'labeled_at': clip_meta['clip_info']['labeled_at'],
-                    'audio_file_path': f"labeled_data/{session_id}/{clip_meta['clip_id']}/{clip_meta['files']['audio_file']}",
+                    'model_input_audio_file_path': '/'.join(
+                        [
+                            'labeled_data',
+                            session_id,
+                            clip_meta['clip_id'],
+                            clip_meta['files']['model_input_audio_file'],
+                        ]
+                    ),
                 }
                 for clip_meta in labeled_clips_metadata
             ]
@@ -207,7 +230,7 @@ async def export_labeled_data(session_id: str, format: str = 'json'):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail='Failed to export data',
-        )
+        ) from e
 
 
 @router.get('/statistics')
@@ -224,7 +247,7 @@ async def get_labeled_data_statistics():
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail='Failed to get statistics',
-        )
+        ) from e
 
 
 @router.get('/all_labeled_clips')
@@ -241,7 +264,7 @@ async def get_all_labeled_clips():
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail='Failed to get labeled clips',
-        )
+        ) from e
 
 
 @router.delete('/{session_id}/labeled_data')
@@ -253,7 +276,8 @@ async def remove_session_labeled_data(session_id: str):
             return JSONResponse(
                 status_code=status.HTTP_200_OK,
                 content={
-                    'message': f'Labeled data for session {session_id} cleaned up successfully'
+                    'message': f'Labeled data for session {session_id} '
+                    'cleaned up successfully'
                 },
             )
         else:
@@ -268,4 +292,4 @@ async def remove_session_labeled_data(session_id: str):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail='Failed to clean up labeled data',
-        )
+        ) from e

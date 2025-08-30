@@ -13,7 +13,7 @@ from porcaro.utils import TimeSignature
 from porcaro.utils.bpm import BPM
 from porcaro.processing.onset import get_librosa_onsets
 from porcaro.processing.sheet import construct_sheet
-from porcaro.processing.window import get_fixed_window_size
+from porcaro.processing.window import get_onsets_window_size
 from porcaro.processing.matching import eighth_note_grid_matching
 from porcaro.processing.formatting import format_for_prediction
 from porcaro.processing.resampling import apply_resampling_to_dataframe
@@ -82,7 +82,7 @@ def run_prediction_on_track(
 
     '''
     # Get window size
-    window_size = get_fixed_window_size(resolution, song_data, onsets)
+    window_size = get_onsets_window_size(resolution, song_data, onsets)
     # Format data into a DataFrame for prediction
     df = format_for_prediction(track, song_data, onsets, window_size)
     # Apply resampling to the dataframe to ensure the audio clip length is consistent

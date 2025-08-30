@@ -2,21 +2,20 @@
 
 import logging
 from pathlib import Path
-from typing import List
 
-from fastapi import APIRouter, HTTPException, UploadFile, File, status
+from fastapi import File
+from fastapi import APIRouter
+from fastapi import UploadFile
+from fastapi import HTTPException
+from fastapi import status
 from fastapi.responses import JSONResponse
 
-from porcaro.api.models import (
-    LabelingSession,
-    ProcessAudioRequest,
-    SessionProgressResponse,
-)
+from porcaro.api.models import LabelingSession
+from porcaro.api.models import ProcessAudioRequest
+from porcaro.api.models import SessionProgressResponse
+from porcaro.api.services.audio_service import process_audio_file
+from porcaro.api.services.audio_service import dataframe_to_audio_clips
 from porcaro.api.services.session_service import session_store
-from porcaro.api.services.audio_service import (
-    process_audio_file,
-    dataframe_to_audio_clips,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -72,7 +71,7 @@ async def create_session(file: UploadFile = File(...)):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail='Failed to create session',
-        )
+        ) from e
 
 
 @router.get('/{session_id}', response_model=LabelingSession)
@@ -164,7 +163,7 @@ async def process_session_audio(session_id: str, request: ProcessAudioRequest):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f'Failed to process audio: {str(e)}',
-        )
+        ) from e
 
 
 @router.get('/{session_id}/progress', response_model=SessionProgressResponse)
@@ -214,7 +213,7 @@ async def delete_session(session_id: str):
     )
 
 
-@router.get('/', response_model=List[LabelingSession])
+@router.get('/', response_model=list[LabelingSession])
 async def list_sessions():
     '''List all active sessions.'''
     sessions = session_store.list_sessions()

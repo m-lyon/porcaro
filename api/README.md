@@ -121,9 +121,9 @@ requests.post(f"http://localhost:8000/api/labels/{session_id}/clips/{clip_id}/la
 response = requests.get(f"http://localhost:8000/api/labels/{session_id}/export")
 labelled_data = response.json()
 
-# Export data now includes file paths to audio files
+# Export data includes file paths to model input audio files
 for clip in labelled_data['clips']:
-    print(f"Audio file: {clip['audio_file_path']}")
+    print(f"Audio file: {clip['model_input_audio_file_path']}")
 
 # Get dataset statistics
 response = requests.get("http://localhost:8000/api/statistics")
@@ -209,14 +209,12 @@ def load_training_data(labeled_data_dir):
                 # Load audio
                 audio_file = clip_dir / metadata['files']['audio_file']
                 audio = np.read(audio_file)
-                sr = metadata['clip_info']['sample_rate']
                 
                 # Extract labels
                 labels = metadata['clip_info']['user_label']
                 
                 training_data.append({
                     'audio': audio,
-                    'sample_rate': sr,
                     'labels': labels,
                     'metadata': metadata
                 })

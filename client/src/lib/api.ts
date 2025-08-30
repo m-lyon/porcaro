@@ -22,8 +22,10 @@ export interface TimeSignature {
 
 export interface AudioClip {
     clip_id: string;
-    sample_start: number;
-    sample_end: number;
+    start_sample: number;
+    start_time: number;
+    end_sample: number;
+    end_time: number;
     sample_rate: number;
     peak_sample: number;
     peak_time: number;
@@ -87,15 +89,6 @@ export interface Statistics {
     total_labeled_clips: number;
     clips_by_label: Record<string, number>;
     sessions_count: number;
-}
-
-export interface LabeledClip {
-    session_id: string;
-    clip_id: string;
-    labels: DrumLabelValue[];
-    audio_file_path: string;
-    labeled_at: string;
-    metadata: Record<string, unknown>;
 }
 
 class APIError extends Error {
@@ -228,11 +221,6 @@ export const api = {
     async getStatistics(): Promise<Statistics> {
         const response = await fetch(`${API_BASE_URL}/labels/statistics`);
         return handleResponse<Statistics>(response);
-    },
-
-    async getAllLabeledClips(): Promise<LabeledClip[]> {
-        const response = await fetch(`${API_BASE_URL}/labels/all_labeled_clips`);
-        return handleResponse<LabeledClip[]>(response);
     },
 
     async removeSessionLabeledData(sessionId: string): Promise<void> {

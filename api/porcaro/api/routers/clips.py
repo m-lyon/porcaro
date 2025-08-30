@@ -1,17 +1,18 @@
 '''API router for clip management endpoints.'''
 
 import logging
-from typing import Optional
 
-from fastapi import APIRouter, HTTPException, status, Query
+from fastapi import Query
+from fastapi import APIRouter
+from fastapi import HTTPException
+from fastapi import status
 from fastapi.responses import Response
 
-from porcaro.api.models import AudioClip, ClipListResponse
+from porcaro.api.models import AudioClip
+from porcaro.api.models import ClipListResponse
+from porcaro.api.services.audio_service import audio_clip_to_wav_bytes
+from porcaro.api.services.audio_service import get_playback_audio_data
 from porcaro.api.services.session_service import session_store
-from porcaro.api.services.audio_service import (
-    get_clip_audio_data,
-    audio_clip_to_wav_bytes,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +24,7 @@ async def get_clips(
     session_id: str,
     page: int = Query(1, ge=1, description='Page number'),
     page_size: int = Query(20, ge=1, le=100, description='Number of clips per page'),
-    labeled: Optional[bool] = Query(None, description='Filter by labeled status'),
+    labeled: bool | None = Query(None, description='Filter by labeled status'),
 ):
     '''Get a paginated list of clips for a session.'''
     session = session_store.get_session(session_id)
@@ -114,7 +115,7 @@ async def get_clip_audio(session_id: str, clip_id: str):
 
         # Get audio data from DataFrame
         df = session_data['dataframe']
-        audio_data = get_clip_audio_data(df, clip_index)
+        audio_data = get_playback_audio_data(df, clip_index)
 
         # Convert to WAV bytes
         wav_bytes = audio_clip_to_wav_bytes(audio_data, clip.sample_rate)
@@ -132,10 +133,10 @@ async def get_clip_audio(session_id: str, clip_id: str):
         logger.error(f'Error parsing clip ID {clip_id}: {str(e)}')
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail='Invalid clip ID format'
-        )
+        ) from e
     except Exception as e:
         logger.error(f'Error streaming audio for clip {clip_id}: {str(e)}')
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail='Failed to stream audio',
-        )
+        ) from e

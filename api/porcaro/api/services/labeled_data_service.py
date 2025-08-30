@@ -1,17 +1,17 @@
 '''Service for managing persistent labeled data storage.'''
 
 import json
+import shutil
 import logging
+from typing import Any
 from pathlib import Path
 from datetime import datetime
-from typing import Dict, List, Any
-import shutil
 
 import numpy as np
 
-
-from porcaro.api.models import AudioClip, LabelingSession
-from porcaro.api.services.audio_service import get_clip_audio_data
+from porcaro.api.models import AudioClip
+from porcaro.api.models import LabelingSession
+from porcaro.api.services.audio_service import get_model_input_audio_data
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +22,14 @@ DEFAULT_LABELED_DATA_DIR = Path('labeled_data')
 class LabeledDataService:
     '''Service for managing persistent storage of labeled clip data.'''
 
+    METADATA_FILENAME = 'metadata.json'
+
     def __init__(self, base_dir: Path = DEFAULT_LABELED_DATA_DIR):
+        '''Initialize the service with a base directory for storage.
+
+        Args:
+            base_dir: Base directory for storing labeled data
+        '''
         self.base_dir = base_dir
         self.base_dir.mkdir(exist_ok=True)
         logger.info(f'LabeledDataService initialized with base directory: {base_dir}')
@@ -37,14 +44,14 @@ class LabeledDataService:
 
     def _get_metadata_file(self, session_id: str, clip_id: str) -> Path:
         '''Get the metadata file path for a clip.'''
-        return self._get_clip_dir(session_id, clip_id) / 'metadata.json'
+        return self._get_clip_dir(session_id, clip_id) / self.METADATA_FILENAME
 
     def _get_audio_file(self, session_id: str, clip_id: str) -> Path:
         '''Get the audio file path for a clip.'''
         return self._get_clip_dir(session_id, clip_id) / f'{clip_id}.npy'
 
     def save_labeled_clip(
-        self, session: LabelingSession, clip: AudioClip, session_data: Dict[str, Any]
+        self, session: LabelingSession, clip: AudioClip, session_data: dict[str, Any]
     ) -> bool:
         '''Save a labeled clip to disk with all metadata and audio data.
 
@@ -71,7 +78,7 @@ class LabeledDataService:
                 return False
 
             df = session_data['dataframe']
-            audio_data = get_clip_audio_data(df, clip_index)
+            audio_data = get_model_input_audio_data(df, clip_index)
 
             # Save audio data
             audio_file = self._get_audio_file(session.session_id, clip.clip_id)
@@ -93,8 +100,10 @@ class LabeledDataService:
                     'created_at': session.created_at.isoformat(),
                 },
                 'clip_info': {
-                    'sample_start': clip.sample_start,
-                    'sample_end': clip.sample_end,
+                    'start_sample': clip.start_sample,
+                    'start_time': clip.start_time,
+                    'end_sample': clip.end_sample,
+                    'end_time': clip.end_time,
                     'sample_rate': clip.sample_rate,
                     'peak_sample': clip.peak_sample,
                     'peak_time': clip.peak_time,
@@ -114,8 +123,7 @@ class LabeledDataService:
                     else None,
                 },
                 'files': {
-                    'audio_file': audio_file.name,
-                    'metadata_file': 'metadata.json',
+                    'model_input_audio_file': audio_file.name,
                 },
                 'saved_at': datetime.now().isoformat(),
             }
@@ -158,7 +166,7 @@ class LabeledDataService:
             logger.error(f'Error removing labeled clip {clip_id}: {str(e)}')
             return False
 
-    def get_labeled_clips_for_session(self, session_id: str) -> List[Dict[str, Any]]:
+    def get_labeled_clips_for_session(self, session_id: str) -> list[dict[str, Any]]:
         '''Get all labeled clips for a session from disk storage.
 
         Args:
@@ -180,10 +188,10 @@ class LabeledDataService:
                 if not clip_dir.is_dir():
                     continue
 
-                metadata_file = clip_dir / 'metadata.json'
+                metadata_file = clip_dir / self.METADATA_FILENAME
                 if metadata_file.exists():
                     try:
-                        with open(metadata_file, 'r') as f:
+                        with open(metadata_file) as f:
                             metadata = json.load(f)
                         labeled_clips.append(metadata)
                     except json.JSONDecodeError as e:
@@ -223,7 +231,7 @@ class LabeledDataService:
             logger.error(f'Error removing session {session_id}: {str(e)}')
             return False
 
-    def get_all_labeled_clips(self) -> List[Dict[str, Any]]:
+    def get_all_labeled_clips(self) -> list[dict[str, Any]]:
         '''Get all labeled clips from all sessions.
 
         Returns:
@@ -248,7 +256,7 @@ class LabeledDataService:
 
         return all_clips
 
-    def get_statistics(self) -> Dict[str, Any]:
+    def get_statistics(self) -> dict[str, Any]:
         '''Get statistics about labeled data.
 
         Returns:

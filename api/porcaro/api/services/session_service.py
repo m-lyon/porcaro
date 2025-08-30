@@ -1,13 +1,13 @@
 '''Session management service.'''
 
 import uuid
-import logging
-from typing import Dict, Optional
-from pathlib import Path
-import tempfile
 import shutil
+import logging
+import tempfile
+from pathlib import Path
 
-from porcaro.api.models import LabelingSession, AudioClip
+from porcaro.api.models import AudioClip
+from porcaro.api.models import LabelingSession
 from porcaro.api.services.labeled_data_service import labeled_data_service
 
 logger = logging.getLogger(__name__)
@@ -17,9 +17,10 @@ class SessionStore:
     '''In-memory store for labeling sessions.'''
 
     def __init__(self):
-        self._sessions: Dict[str, LabelingSession] = {}
-        self._session_data: Dict[str, Dict] = {}  # Store clips and other session data
-        self._temp_dirs: Dict[str, Path] = {}  # Track temp directories for cleanup
+        '''Initialize the session store.'''
+        self._sessions: dict[str, LabelingSession] = {}
+        self._session_data: dict[str, dict] = {}  # Store clips and other session data
+        self._temp_dirs: dict[str, Path] = {}  # Track temp directories for cleanup
 
     def create_session(self, filename: str) -> LabelingSession:
         '''Create a new labeling session.'''
@@ -42,13 +43,11 @@ class SessionStore:
         logger.info(f'Created session {session_id} for file {filename}')
         return session
 
-    def get_session(self, session_id: str) -> Optional[LabelingSession]:
+    def get_session(self, session_id: str) -> LabelingSession | None:
         '''Get session by ID.'''
         return self._sessions.get(session_id)
 
-    def update_session(
-        self, session_id: str, updates: dict
-    ) -> Optional[LabelingSession]:
+    def update_session(self, session_id: str, updates: dict) -> LabelingSession | None:
         '''Update session with new data.'''
         if session_id not in self._sessions:
             return None
@@ -87,7 +86,7 @@ class SessionStore:
         logger.info(f'Deleted session {session_id}')
         return True
 
-    def get_session_data(self, session_id: str) -> Optional[Dict]:
+    def get_session_data(self, session_id: str) -> dict | None:
         '''Get session data (clips, audio, etc.).'''
         return self._session_data.get(session_id)
 
@@ -107,7 +106,7 @@ class SessionStore:
         self._session_data[session_id]['clips'][clip.clip_id] = clip
         return True
 
-    def get_clip(self, session_id: str, clip_id: str) -> Optional[AudioClip]:
+    def get_clip(self, session_id: str, clip_id: str) -> AudioClip | None:
         '''Get a specific clip from the session.'''
         session_data = self._session_data.get(session_id)
         if not session_data:
@@ -115,7 +114,7 @@ class SessionStore:
 
         return session_data['clips'].get(clip_id)
 
-    def get_all_clips(self, session_id: str) -> Dict[str, AudioClip]:
+    def get_all_clips(self, session_id: str) -> dict[str, AudioClip]:
         '''Get all clips for a session.'''
         session_data = self._session_data.get(session_id)
         if not session_data:
@@ -123,7 +122,7 @@ class SessionStore:
 
         return session_data['clips']
 
-    def list_sessions(self) -> Dict[str, LabelingSession]:
+    def list_sessions(self) -> dict[str, LabelingSession]:
         '''List all active sessions.'''
         return self._sessions.copy()
 

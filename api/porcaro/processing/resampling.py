@@ -29,3 +29,11 @@ def apply_resampling_to_dataframe(df: pd.DataFrame, target_length: int) -> None:
         ),
         axis=1,
     )
+    df['start_sample'] = df.apply(
+        lambda x: librosa.time_to_samples(x['start_time'], sr=x['sampling_rate']),
+        axis=1,
+    )
+    df['end_sample'] = df.apply(
+        lambda x: librosa.time_to_samples(x['end_time'], sr=x['sampling_rate']),
+        axis=1,
+    )
