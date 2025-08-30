@@ -88,7 +88,7 @@ async def get_clip(session_id: str, clip_id: str):
 
 
 @router.get('/{session_id}/clips/{clip_id}/audio')
-async def get_clip_audio(session_id: str, clip_id: str):
+async def get_clip_audio(session_id: str, clip_id: str, playback_window: float = 1.0):
     '''Stream the audio data for a specific clip as WAV.'''
     session = session_store.get_session(session_id)
     if not session:
@@ -114,11 +114,17 @@ async def get_clip_audio(session_id: str, clip_id: str):
         clip_index = int(clip_id.split('_')[-1])
 
         # Get audio data from DataFrame
-        df = session_data['dataframe']
-        audio_data = get_playback_audio_data(df, clip_index)
+        sample_rate = session_data['metadata']['sample_rate']
+        audio_data = get_playback_audio_data(
+            track=session_data['audio_track'],
+            sample_rate=sample_rate,
+            df=session_data['dataframe'],
+            clip_index=clip_index,
+            playback_window=playback_window,
+        )
 
         # Convert to WAV bytes
-        wav_bytes = audio_clip_to_wav_bytes(audio_data, clip.sample_rate)
+        wav_bytes = audio_clip_to_wav_bytes(audio_data, sample_rate)
 
         return Response(
             content=wav_bytes,

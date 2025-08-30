@@ -57,35 +57,3 @@ def format_for_prediction(
     )
 
     return df
-
-
-def add_playback_clips_to_dataframe(
-    df: pd.DataFrame,
-    drum_track: np.ndarray,
-    sample_rate: int | float,
-    window_size: float = 1.0,
-):
-    '''Add larger audio clips for playback to the prediction DataFrame.
-
-    Args:
-        df (pd.DataFrame): The DataFrame containing the prediction results.
-        drum_track (np.ndarray): The original drum track audio data.
-        sample_rate (int | float): The sample rate of the original drum track.
-        window_size (float): The size of the playback window in seconds. Default is 1.0
-            seconds.
-    '''
-    # Need to calculate start and end samples because the sampling rate may have changed
-    # due to resampling.
-    sample_starts = librosa.time_to_samples(
-        df['peak_time'].to_numpy() - (window_size / 2), sr=sample_rate
-    )
-    sample_starts = np.maximum(sample_starts, 0)
-    sample_ends = librosa.time_to_samples(
-        df['peak_time'].to_numpy() + (window_size / 2), sr=sample_rate
-    )
-    sample_ends = np.minimum(sample_ends, len(drum_track))
-    playback_clips = [
-        drum_track[start:end]
-        for start, end in zip(sample_starts, sample_ends, strict=False)
-    ]
-    df['playback_clip'] = playback_clips

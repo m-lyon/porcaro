@@ -15,7 +15,7 @@ from porcaro.api.models import TimeSignatureModel
 from porcaro.transcription import load_song_data
 from porcaro.transcription import get_librosa_onsets
 from porcaro.transcription import run_prediction_on_track
-from porcaro.processing.formatting import add_playback_clips_to_dataframe
+from porcaro.processing.window import get_windowed_sample
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +34,6 @@ def process_audio_file(
     offset: float = 0.0,
     duration: float | None = None,
     resolution: int = 16,
-    playback_window: float = 1.0,
 ) -> tuple[np.ndarray, pd.DataFrame, dict]:
     '''Process audio file through the porcaro transcription pipeline.
 
@@ -63,13 +62,10 @@ def process_audio_file(
     # Run prediction
     df = run_prediction_on_track(track, onsets, song_data, resolution)
 
-    # Add samples of audio clips with larger windows for playback
-    add_playback_clips_to_dataframe(df, track, song_data.sample_rate, playback_window)
-
     # Prepare metadata
     metadata = {
-        'bpm': song_data.bpm.bpm,  # Access the underlying float value
-        'sample_rate': int(song_data.sample_rate),
+        'bpm': song_data.bpm.bpm,
+        'sample_rate': song_data.sample_rate,
         'duration': song_data.duration,
         'total_clips': len(df),
     }
@@ -125,10 +121,18 @@ def get_model_input_audio_data(df: pd.DataFrame, clip_index: int) -> np.ndarray:
     return row['audio_clip']
 
 
-def get_playback_audio_data(df: pd.DataFrame, clip_index: int) -> np.ndarray:
+def get_playback_audio_data(
+    track: np.ndarray,
+    sample_rate: int | float,
+    df: pd.DataFrame,
+    clip_index: int,
+    playback_window: float = 1.0,
+) -> np.ndarray:
     '''Extract audio data for a specific clip with padding from the DataFrame.'''
     if clip_index >= len(df):
         raise IndexError(f'Clip index {clip_index} out of range.')
-
     row = df.iloc[clip_index]
-    return row['playback_clip']
+    peak_time = row['peak_time']
+
+    # Extract audio data with padding
+    return get_windowed_sample(track, sample_rate, peak_time, playback_window)
