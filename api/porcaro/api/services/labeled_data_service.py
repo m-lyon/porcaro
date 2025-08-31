@@ -11,6 +11,7 @@ import numpy as np
 
 from porcaro.api.models import AudioClip
 from porcaro.api.models import LabelingSession
+from porcaro.api.models import LabelingSessionData
 from porcaro.api.services.audio_service import get_model_input_audio_data
 
 logger = logging.getLogger(__name__)
@@ -51,7 +52,10 @@ class LabeledDataService:
         return self._get_clip_dir(session_id, clip_id) / f'{clip_id}.npy'
 
     def save_labeled_clip(
-        self, session: LabelingSession, clip: AudioClip, session_data: dict[str, Any]
+        self,
+        session: LabelingSession,
+        clip: AudioClip,
+        session_data: LabelingSessionData,
     ) -> bool:
         '''Save a labeled clip to disk with all metadata and audio data.
 
@@ -71,14 +75,13 @@ class LabeledDataService:
             clip_index = int(clip.clip_id.split('_')[-1])
 
             # Get audio data from DataFrame
-            if 'dataframe' not in session_data:
+            if session_data.dataframe is None:
                 logger.error(
                     f'No dataframe found in session data for {session.session_id}'
                 )
                 return False
 
-            df = session_data['dataframe']
-            audio_data = get_model_input_audio_data(df, clip_index)
+            audio_data = get_model_input_audio_data(session_data.dataframe, clip_index)
 
             # Save audio data
             audio_file = self._get_audio_file(session.session_id, clip.clip_id)

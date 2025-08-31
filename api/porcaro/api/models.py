@@ -2,8 +2,11 @@
 
 from enum import Enum
 from typing import Any
+from pathlib import Path
 from datetime import datetime
 
+import numpy as np
+import pandas as pd
 from pydantic import Field
 from pydantic import BaseModel
 
@@ -56,6 +59,15 @@ class AudioClip(BaseModel):
         use_enum_values = True
 
 
+class SessionMetadata(BaseModel):
+    '''Metadata for a labeling session.'''
+
+    bpm: float = Field(..., description='Beats per minute of the audio')
+    sample_rate: int | float = Field(..., description='Sample rate of the audio')
+    duration: float = Field(..., description='Duration of the audio in seconds')
+    total_clips: int = Field(..., description='Total number of clips generated')
+
+
 class LabelingSession(BaseModel):
     '''Model for a labeling session.'''
 
@@ -78,6 +90,27 @@ class LabelingSession(BaseModel):
     )
     processed: bool = Field(
         default=False, description='Whether audio processing is complete'
+    )
+
+
+class LabelingSessionData(BaseModel):
+    '''Model for storing session-related data.'''
+
+    temp_dir: Path = Field(..., description='Path to the temporary directory')
+    clips: dict[str, AudioClip] = Field(
+        default_factory=dict, description='Clips associated with the session'
+    )
+    file_path: Path | None = Field(
+        default=None, description='Path to the uploaded audio file'
+    )
+    dataframe: pd.DataFrame | None = Field(
+        default=None, description='DataFrame with audio analysis data'
+    )
+    audio_track: np.ndarray | None = Field(
+        default=None, description='Loaded audio track data'
+    )
+    metadata: SessionMetadata | None = Field(
+        default=None, description='Additional metadata'
     )
 
 

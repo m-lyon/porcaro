@@ -46,8 +46,7 @@ async def label_clip(session_id: str, clip_id: str, request: LabelClipRequest):
                 status_code=status.HTTP_404_NOT_FOUND, detail='Session data not found'
             )
 
-        if 'clips' in session_data:
-            session_data['clips'][clip_id] = clip
+        session_data.clips[clip_id] = clip
 
         # Save labeled clip to disk immediately
         success = labeled_data_service.save_labeled_clip(session, clip, session_data)
@@ -92,8 +91,8 @@ async def remove_clip_label(session_id: str, clip_id: str):
 
         # Update clip in session store
         session_data = session_store.get_session_data(session_id)
-        if session_data and 'clips' in session_data:
-            session_data['clips'][clip_id] = clip
+        if session_data:
+            session_data.clips[clip_id] = clip
 
         # Remove labeled clip from disk
         success = labeled_data_service.remove_labeled_clip(session_id, clip_id)

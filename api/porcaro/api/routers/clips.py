@@ -40,12 +40,12 @@ async def get_clips(
         )
 
     session_data = session_store.get_session_data(session_id)
-    if not session_data or 'clips' not in session_data:
+    if not session_data:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail='No clips found for session'
         )
 
-    clips = list(session_data['clips'].values())
+    clips = list(session_data.clips.values())
 
     # Filter by labeled status if requested
     if labeled is not None:
@@ -103,7 +103,11 @@ async def get_clip_audio(session_id: str, clip_id: str, playback_window: float =
         )
 
     session_data = session_store.get_session_data(session_id)
-    if not session_data or 'dataframe' not in session_data:
+    if (
+        not session_data
+        or session_data.dataframe is None
+        or session_data.audio_track is None
+    ):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail='Audio data not found for session',
@@ -113,12 +117,18 @@ async def get_clip_audio(session_id: str, clip_id: str, playback_window: float =
         # Extract clip index from clip_id (format: {session_id}_{index})
         clip_index = int(clip_id.split('_')[-1])
 
+        if session_data.metadata is None:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail='Session metadata is missing',
+            )
+
         # Get audio data from DataFrame
-        sample_rate = session_data['metadata']['sample_rate']
+        sample_rate = session_data.metadata.sample_rate
         audio_data = get_playback_audio_data(
-            track=session_data['audio_track'],
+            track=session_data.audio_track,
             sample_rate=sample_rate,
-            df=session_data['dataframe'],
+            df=session_data.dataframe,
             clip_index=clip_index,
             playback_window=playback_window,
         )

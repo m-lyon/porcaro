@@ -11,6 +11,7 @@ import soundfile as sf
 from porcaro.utils import TimeSignature
 from porcaro.api.models import AudioClip
 from porcaro.api.models import DrumLabel
+from porcaro.api.models import SessionMetadata
 from porcaro.api.models import TimeSignatureModel
 from porcaro.transcription import load_song_data
 from porcaro.transcription import get_librosa_onsets
@@ -34,7 +35,7 @@ def process_audio_file(
     offset: float = 0.0,
     duration: float | None = None,
     resolution: int = 16,
-) -> tuple[np.ndarray, pd.DataFrame, dict]:
+) -> tuple[np.ndarray, pd.DataFrame, SessionMetadata]:
     '''Process audio file through the porcaro transcription pipeline.
 
     Returns:
@@ -63,12 +64,12 @@ def process_audio_file(
     df = run_prediction_on_track(track, onsets, song_data, resolution)
 
     # Prepare metadata
-    metadata = {
-        'bpm': song_data.bpm.bpm,
-        'sample_rate': song_data.sample_rate,
-        'duration': song_data.duration,
-        'total_clips': len(df),
-    }
+    metadata = SessionMetadata(
+        bpm=song_data.bpm.bpm,
+        sample_rate=song_data.sample_rate,
+        duration=song_data.duration,
+        total_clips=len(df),
+    )
 
     logger.info(f'Processed {len(df)} clips with BPM {song_data.bpm}')
     return track, df, metadata

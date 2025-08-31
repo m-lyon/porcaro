@@ -52,8 +52,7 @@ async def create_session(file: UploadFile = File(...)):
                 detail='Failed to create session data',
             )
 
-        temp_dir = session_data['temp_dir']
-        file_path = temp_dir / file.filename
+        file_path = session_data.temp_dir / file.filename
 
         # Write uploaded file
         with open(file_path, 'wb') as buffer:
@@ -96,20 +95,18 @@ async def process_session_audio(session_id: str, request: ProcessAudioRequest):
         )
 
     session_data = session_store.get_session_data(session_id)
-    if not session_data or 'file_path' not in session_data:
+    if not session_data or session_data.file_path is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail='No audio file found for session',
         )
-
-    file_path = session_data['file_path']
 
     try:
         logger.info(f'Processing audio for session {session_id}')
 
         # Process audio through porcaro pipeline
         track, df, metadata = process_audio_file(
-            file_path=file_path,
+            file_path=session_data.file_path,
             time_sig=request.time_signature,
             start_beat=request.start_beat,
             offset=request.offset,
@@ -140,8 +137,8 @@ async def process_session_audio(session_id: str, request: ProcessAudioRequest):
                 'offset': request.offset,
                 'duration': request.duration,
                 'resolution': request.resolution,
-                'bpm': metadata['bpm'],
-                'total_clips': metadata['total_clips'],
+                'bpm': metadata.bpm,
+                'total_clips': metadata.total_clips,
                 'processed': True,
             },
         )
@@ -153,8 +150,8 @@ async def process_session_audio(session_id: str, request: ProcessAudioRequest):
             content={
                 'message': 'Audio processing completed',
                 'total_clips': len(clips),
-                'bpm': metadata['bpm'],
-                'duration': metadata['duration'],
+                'bpm': metadata.bpm,
+                'duration': metadata.duration,
             },
         )
 
@@ -179,9 +176,10 @@ async def get_session_progress(session_id: str):
     session_data = session_store.get_session_data(session_id)
     labeled_count = 0
 
-    if session_data and 'clips' in session_data:
-        clips = session_data['clips']
-        labeled_count = sum(1 for clip in clips.values() if clip.user_label is not None)
+    if session_data:
+        labeled_count = sum(
+            1 for clip in session_data.clips.values() if clip.user_label is not None
+        )
 
     # Update session with current count
     session_store.update_session(session_id, {'labeled_clips': labeled_count})
