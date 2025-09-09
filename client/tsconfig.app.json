@@ -12,7 +12,7 @@
         "skipLibCheck": true,
         "baseUrl": ".",
         "paths": {
-            "@/*": [
+            "@porcaro/*": [
                 "./src/*"
             ]
         },
@@ -23,6 +23,9 @@
         "moduleDetection": "force",
         "noEmit": true,
         "jsx": "react-jsx",
+        "types": [
+            "vite/client"
+        ],
         /* Linting */
         "strict": true,
         "noUnusedLocals": true,

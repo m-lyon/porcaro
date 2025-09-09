@@ -1,8 +1,15 @@
 import { Routes, Route } from 'react-router';
-import HomePage from './pages/HomePage';
-import SessionPage from './pages/SessionPage';
-import LabelingPage from './pages/LabelingPage';
+import HomePage from '@porcaro/pages/HomePage';
+import SessionPage from '@porcaro/pages/SessionPage';
+import LabelingPage from '@porcaro/pages/LabelingPage';
 import './App.css';
+import { client } from '@porcaro/api/generated/client.gen';
+import { ExamplePage } from './pages/ExamplePage';
+
+// Initialize the API client
+client.setConfig({
+    baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000',
+});
 
 function App() {
     return (
@@ -23,6 +30,7 @@ function App() {
                     <Route path='/' element={<HomePage />} />
                     <Route path='/session/:sessionId' element={<SessionPage />} />
                     <Route path='/session/:sessionId/label' element={<LabelingPage />} />
+                    <Route path='/test' element={<ExamplePage />} />
                 </Routes>
             </main>
         </div>

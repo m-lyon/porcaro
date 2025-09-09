@@ -1,24 +1,51 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+} from '@porcaro/components/ui/card';
+import { Button } from '@porcaro/components/ui/button';
+import { Progress } from '@porcaro/components/ui/progress';
 import {
     Select,
     SelectContent,
     SelectItem,
     SelectTrigger,
     SelectValue,
-} from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Play, Pause, SkipBack, SkipForward, Check, X, Keyboard } from 'lucide-react';
+} from '@porcaro/components/ui/select';
+import { Badge } from '@porcaro/components/ui/badge';
+import { ArrowLeft, Check, X, Keyboard } from 'lucide-react';
 import { toast } from 'sonner';
-import { api } from '@/lib/api';
-import { ClipLoadingSkeleton } from '@/components/LoadingSkeletons';
-import { DrumLabelBadge } from '@/components/ClipBadges';
-import { useKeyboardShortcuts, formatKeyboardShortcut } from '@/hooks/useKeyboardShortcuts';
+import {
+    getClips,
+    getSession,
+    getSessionProgress,
+    removeClipLabel,
+    type AudioClip,
+    type DrumLabel as DrumLabelValue,
+    type LabelingSession,
+    type SessionProgress,
+} from '@porcaro/api/generated';
+import { ClipLoadingSkeleton } from '@porcaro/components/LoadingSkeletons';
+import { DrumLabelBadge } from '@porcaro/components/ClipBadges';
+import { WaveformPlayer, type WaveformPlayerRef } from '@porcaro/components/WaveformPlayer';
+import { useKeyboardShortcuts, formatKeyboardShortcut } from '@porcaro/hooks/useKeyboardShortcuts';
+import { labelClip } from '@porcaro/api/generated';
+import { getClipAudioUrl } from '@porcaro/lib/api';
 
-const DRUM_LABELS = [
+interface DrumLabel {
+    value: DrumLabelValue;
+    label: string;
+    color: string;
+    key: string;
+}
+
+type FilterStatus = 'all' | 'labeled' | 'unlabeled';
+
+const DRUM_LABELS: DrumLabel[] = [
     { value: 'KD', label: 'Kick Drum', color: 'bg-red-500', key: '1' },
     { value: 'SD', label: 'Snare Drum', color: 'bg-blue-500', key: '2' },
     { value: 'HH', label: 'Hi-Hat', color: 'bg-green-500', key: '3' },
@@ -28,28 +55,30 @@ const DRUM_LABELS = [
 ];
 
 export default function LabelingPage() {
-    const { sessionId } = useParams();
+    const { sessionId } = useParams<{ sessionId: string }>();
     const navigate = useNavigate();
-    const audioRef = useRef(null);
+    const waveformPlayerRef = useRef<WaveformPlayerRef>(null);
 
-    const [session, setSession] = useState(null);
-    const [clips, setClips] = useState([]);
-    const [currentClipIndex, setCurrentClipIndex] = useState(0);
-    const [isPlaying, setIsPlaying] = useState(false);
-    const [selectedLabels, setSelectedLabels] = useState([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [isSaving, setIsSaving] = useState(false);
-    const [filterStatus, setFilterStatus] = useState('all'); // all, labeled, unlabeled
-    const [progress, setProgress] = useState(null);
-    const [showShortcuts, setShowShortcuts] = useState(false);
+    // Early return if sessionId is undefined
+    if (!sessionId) {
+        navigate('/');
+    }
+
+    const [session, setSession] = useState<LabelingSession | null>(null);
+    const [clips, setClips] = useState<AudioClip[]>([]);
+    const [currentClipIndex, setCurrentClipIndex] = useState<number>(0);
+    const [isPlaying, setIsPlaying] = useState<boolean>(false);
+    const [selectedLabels, setSelectedLabels] = useState<DrumLabelValue[]>([]);
+    const [isLoading, setIsLoading] = useState<boolean>(true);
+    const [isSaving, setIsSaving] = useState<boolean>(false);
+    const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
+    const [progress, setProgress] = useState<SessionProgress | null>(null);
+    const [showShortcuts, setShowShortcuts] = useState<boolean>(false);
+    const [playbackWindow, setPlaybackWindow] = useState<number[]>([1.0]);
 
     const togglePlayback = () => {
-        if (!audioRef.current) return;
-
-        if (isPlaying) {
-            audioRef.current.pause();
-        } else {
-            audioRef.current.play();
+        if (waveformPlayerRef.current) {
+            waveformPlayerRef.current.togglePlayback();
         }
     };
 
@@ -73,17 +102,24 @@ export default function LabelingPage() {
 
     const saveLabel = async () => {
         const currentClip = clips[currentClipIndex];
-        if (!currentClip) return;
+        if (!currentClip || !sessionId) {
+            return;
+        }
 
         setIsSaving(true);
         try {
             if (selectedLabels.length === 0) {
                 // Remove label if no labels selected
-                await api.removeClipLabel(sessionId, currentClip.clip_id);
+                await removeClipLabel({
+                    path: { session_id: sessionId, clip_id: currentClip.clip_id },
+                });
                 toast.success('Label removed');
             } else {
                 // Save labels
-                await api.labelClip(sessionId, currentClip.clip_id, { labels: selectedLabels });
+                await labelClip({
+                    body: { labels: selectedLabels },
+                    path: { session_id: sessionId, clip_id: currentClip.clip_id },
+                });
                 toast.success('Label saved');
             }
 
@@ -97,15 +133,19 @@ export default function LabelingPage() {
             );
 
             // Update progress
-            const progressData = await api.getSessionProgress(sessionId);
-            setProgress(progressData);
+            const progressResponse = await getSessionProgress({
+                path: { session_id: sessionId },
+            });
+            if (progressResponse && progressResponse.data) {
+                setProgress(progressResponse.data);
+            }
 
             // Auto-advance to next unlabeled clip
             if (filterStatus === 'unlabeled' || filterStatus === 'all') {
                 nextClip();
             }
-        } catch (error) {
-            toast.error('Failed to save label: ' + error.message);
+        } catch (error: any) {
+            toast.error('Failed to save label: ' + (error?.message || 'Unknown error'));
         } finally {
             setIsSaving(false);
         }
@@ -113,6 +153,14 @@ export default function LabelingPage() {
 
     const clearLabels = () => {
         setSelectedLabels([]);
+    };
+
+    const loadClipLabels = (clip: AudioClip) => {
+        if (clip?.user_label) {
+            setSelectedLabels([...clip.user_label]);
+        } else {
+            setSelectedLabels([]);
+        }
     };
 
     // Keyboard shortcuts configuration
@@ -133,57 +181,68 @@ export default function LabelingPage() {
 
     useKeyboardShortcuts(keyboardShortcuts, !isLoading && !!currentClip);
 
+    const loadSessionAndClips = useCallback(async () => {
+        if (!sessionId) {
+            return;
+        }
+
+        setIsLoading(true);
+
+        // Load session info
+        const sessionData = await getSession({
+            path: { session_id: sessionId },
+        });
+        if (!sessionData || !sessionData.data) {
+            toast.error('Session not found');
+            setIsLoading(false);
+            return;
+        }
+        setSession(sessionData.data);
+
+        // Load progress
+        const progressResponse = await getSessionProgress({
+            path: { session_id: sessionId },
+        });
+        if (!progressResponse || !progressResponse.data) {
+            toast.error('Failed to load session progress');
+            setIsLoading(false);
+            return;
+        }
+        setProgress(progressResponse.data);
+
+        // Load clips based on filter
+        const labeled =
+            filterStatus === 'labeled' ? true : filterStatus === 'unlabeled' ? false : undefined;
+        const clipsData = await getClips({
+            path: { session_id: sessionId },
+            query: { page: 1, page_size: 100, labeled },
+        });
+        if (!clipsData || !clipsData.data) {
+            toast.error('Failed to load clips');
+            setIsLoading(false);
+            return;
+        }
+        setClips(clipsData.data.clips);
+
+        // Reset to first clip if we have clips
+        if (clipsData.data.clips.length > 0) {
+            setCurrentClipIndex(0);
+            loadClipLabels({
+                ...clipsData.data.clips[0],
+                user_label:
+                    clipsData.data.clips[0].user_label === undefined
+                        ? null
+                        : clipsData.data.clips[0].user_label,
+            });
+        }
+        setIsLoading(false);
+    }, [sessionId, filterStatus, navigate]);
+
     useEffect(() => {
         loadSessionAndClips();
-    }, [sessionId, filterStatus]);
+    }, [loadSessionAndClips]);
 
-    // Remove the old keyboard event handler since we're using the hook now
-
-    const loadSessionAndClips = async () => {
-        try {
-            setIsLoading(true);
-
-            // Load session info
-            const sessionData = await api.getSession(sessionId);
-            setSession(sessionData);
-
-            // Load progress
-            const progressData = await api.getSessionProgress(sessionId);
-            setProgress(progressData);
-
-            // Load clips based on filter
-            const labeled =
-                filterStatus === 'labeled'
-                    ? true
-                    : filterStatus === 'unlabeled'
-                    ? false
-                    : undefined;
-
-            const clipsData = await api.getClips(sessionId, 1, 100, labeled);
-            setClips(clipsData.clips);
-
-            // Reset to first clip if we have clips
-            if (clipsData.clips.length > 0) {
-                setCurrentClipIndex(0);
-                loadClipLabels(clipsData.clips[0]);
-            }
-        } catch (error) {
-            toast.error('Failed to load session data: ' + error.message);
-            navigate('/');
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const loadClipLabels = (clip) => {
-        if (clip?.user_label) {
-            setSelectedLabels([...clip.user_label]);
-        } else {
-            setSelectedLabels([]);
-        }
-    };
-
-    const toggleLabel = (labelValue) => {
+    const toggleLabel = (labelValue: DrumLabelValue) => {
         setSelectedLabels((prev) =>
             prev.includes(labelValue) ? prev.filter((l) => l !== labelValue) : [...prev, labelValue]
         );
@@ -236,8 +295,6 @@ export default function LabelingPage() {
         );
     }
 
-    const progressPercentage = progress ? (progress.labeled_clips / progress.total_clips) * 100 : 0;
-
     return (
         <div className='space-y-6'>
             {/* Header */}
@@ -267,7 +324,10 @@ export default function LabelingPage() {
                         Shortcuts
                     </Button>
 
-                    <Select value={filterStatus} onValueChange={setFilterStatus}>
+                    <Select
+                        value={filterStatus}
+                        onValueChange={(value: FilterStatus) => setFilterStatus(value)}
+                    >
                         <SelectTrigger className='w-40'>
                             <SelectValue />
                         </SelectTrigger>
@@ -313,9 +373,9 @@ export default function LabelingPage() {
                     <CardContent className='pt-6'>
                         <div className='flex justify-between text-sm mb-2'>
                             <span>Overall Progress</span>
-                            <span>{progressPercentage.toFixed(1)}%</span>
+                            <span>{progress.progress_percentage.toFixed(1)}%</span>
                         </div>
-                        <Progress value={progressPercentage} className='h-2' />
+                        <Progress value={progress.progress_percentage} className='h-2' />
                     </CardContent>
                 </Card>
             )}
@@ -343,42 +403,26 @@ export default function LabelingPage() {
                         </CardDescription>
                     </CardHeader>
                     <CardContent className='space-y-4'>
-                        <audio
-                            ref={audioRef}
-                            src={api.getClipAudioUrl(sessionId, currentClip.clip_id)}
-                            onPlay={() => setIsPlaying(true)}
-                            onPause={() => setIsPlaying(false)}
-                            onEnded={() => setIsPlaying(false)}
-                            preload='auto'
-                            className='w-full'
-                            controls
+                        <WaveformPlayer
+                            ref={waveformPlayerRef}
+                            audioUrl={
+                                sessionId && currentClip
+                                    ? getClipAudioUrl(
+                                          sessionId,
+                                          currentClip.clip_id,
+                                          playbackWindow[0]
+                                      )
+                                    : ''
+                            }
+                            isPlaying={isPlaying}
+                            setIsPlaying={setIsPlaying}
+                            onNext={nextClip}
+                            onPrevious={previousClip}
+                            canGoNext={currentClipIndex < clips.length - 1}
+                            canGoPrevious={currentClipIndex > 0}
+                            playbackWindow={playbackWindow[0]}
+                            onPlaybackWindowChange={setPlaybackWindow}
                         />
-
-                        <div className='flex items-center justify-center gap-2'>
-                            <Button
-                                variant='outline'
-                                onClick={previousClip}
-                                disabled={currentClipIndex === 0}
-                            >
-                                <SkipBack className='h-4 w-4' />
-                            </Button>
-
-                            <Button onClick={togglePlayback} size='lg'>
-                                {isPlaying ? (
-                                    <Pause className='h-4 w-4' />
-                                ) : (
-                                    <Play className='h-4 w-4' />
-                                )}
-                            </Button>
-
-                            <Button
-                                variant='outline'
-                                onClick={nextClip}
-                                disabled={currentClipIndex === clips.length - 1}
-                            >
-                                <SkipForward className='h-4 w-4' />
-                            </Button>
-                        </div>
 
                         <div className='text-center text-sm text-muted-foreground'>
                             <p>

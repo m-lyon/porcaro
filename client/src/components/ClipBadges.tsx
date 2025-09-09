@@ -1,4 +1,4 @@
-import { Badge } from '@/components/ui/badge';
+import { Badge } from '@porcaro/components/ui/badge';
 import { AlertTriangle, CheckCircle, Clock } from 'lucide-react';
 
 interface ClipStatusBadgeProps {

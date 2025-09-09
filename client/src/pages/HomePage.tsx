@@ -1,13 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Progress } from '@/components/ui/progress';
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+} from '@porcaro/components/ui/card';
+import { Button } from '@porcaro/components/ui/button';
+import { Input } from '@porcaro/components/ui/input';
+import { Label } from '@porcaro/components/ui/label';
+import { Progress } from '@porcaro/components/ui/progress';
 import { Upload, Music, FileAudio, Calendar, BarChart3 } from 'lucide-react';
 import { toast } from 'sonner';
-import { api } from '@/lib/api';
+import { api } from '@porcaro/lib/api';
 
 export default function HomePage() {
     const [sessions, setSessions] = useState([]);

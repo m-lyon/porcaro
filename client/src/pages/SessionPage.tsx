@@ -1,20 +1,26 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+} from '@porcaro/components/ui/card';
+import { Button } from '@porcaro/components/ui/button';
+import { Input } from '@porcaro/components/ui/input';
+import { Label } from '@porcaro/components/ui/label';
 import {
     Select,
     SelectContent,
     SelectItem,
     SelectTrigger,
     SelectValue,
-} from '@/components/ui/select';
-import { Progress } from '@/components/ui/progress';
+} from '@porcaro/components/ui/select';
+import { Progress } from '@porcaro/components/ui/progress';
 import { ArrowLeft, Settings, Play, BarChart3, Download, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { api } from '@/lib/api';
+import { api } from '@porcaro/lib/api';
 
 export default function SessionPage() {
     const { sessionId } = useParams();
