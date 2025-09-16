@@ -4,7 +4,6 @@ import SessionPage from '@porcaro/pages/SessionPage';
 import LabelingPage from '@porcaro/pages/LabelingPage';
 import './App.css';
 import { client } from '@porcaro/api/generated/client.gen';
-import { ExamplePage } from './pages/ExamplePage';
 
 // Initialize the API client
 client.setConfig({
@@ -30,7 +29,6 @@ function App() {
                     <Route path='/' element={<HomePage />} />
                     <Route path='/session/:sessionId' element={<SessionPage />} />
                     <Route path='/session/:sessionId/label' element={<LabelingPage />} />
-                    <Route path='/test' element={<ExamplePage />} />
                 </Routes>
             </main>
         </div>

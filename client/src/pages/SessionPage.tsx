@@ -1,32 +1,23 @@
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router';
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from '@porcaro/components/ui/card';
-import { Button } from '@porcaro/components/ui/button';
+import { toast } from 'sonner';
 import { Input } from '@porcaro/components/ui/input';
 import { Label } from '@porcaro/components/ui/label';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@porcaro/components/ui/select';
+import { useParams, useNavigate } from 'react-router';
+import { Button } from '@porcaro/components/ui/button';
+import { CardTitle } from '@porcaro/components/ui/card';
+import { useState, useEffect, useCallback } from 'react';
 import { Progress } from '@porcaro/components/ui/progress';
+import { SelectValue } from '@porcaro/components/ui/select';
+import { deleteSession, type LabelingSession } from '@porcaro/api/generated';
 import { ArrowLeft, Settings, Play, BarChart3, Download, Trash2 } from 'lucide-react';
-import { toast } from 'sonner';
-import { api } from '@porcaro/lib/api';
+import { exportLabeledData, getSession, processSessionAudio } from '@porcaro/api/generated';
+import { Card, CardContent, CardDescription, CardHeader } from '@porcaro/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger } from '@porcaro/components/ui/select';
 
 export default function SessionPage() {
     const { sessionId } = useParams();
     const navigate = useNavigate();
 
-    const [session, setSession] = useState(null);
+    const [session, setSession] = useState<LabelingSession | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -36,33 +27,47 @@ export default function SessionPage() {
     const [duration, setDuration] = useState('');
     const [resolution, setResolution] = useState(16);
 
+    const loadSession = useCallback(async () => {
+        if (!sessionId) {
+            toast.error('Invalid session ID');
+            navigate('/');
+            setIsLoading(false);
+            return;
+        }
+        const sessionData = await getSession({ path: { session_id: sessionId } });
+        if (!sessionData || !sessionData.data) {
+            toast.error('Session not found');
+            navigate('/');
+            setIsLoading(false);
+            return;
+        }
+        setSession(sessionData.data);
+        if (sessionData.data.time_signature) {
+            setTimeSignature(sessionData.data.time_signature);
+        }
+        if (sessionData.data.start_beat) {
+            setStartBeat(sessionData.data.start_beat);
+        }
+        if (sessionData.data.offset) {
+            setOffset(sessionData.data.offset);
+        }
+        if (sessionData.data.duration) {
+            setDuration(sessionData.data.duration.toString());
+        }
+        if (sessionData.data.resolution) {
+            setResolution(sessionData.data.resolution);
+        }
+        setIsLoading(false);
+    }, [sessionId, navigate]);
+
     useEffect(() => {
         loadSession();
-    }, [sessionId]);
-
-    const loadSession = async () => {
-        try {
-            const sessionData = await api.getSession(sessionId);
-            setSession(sessionData);
-
-            // Pre-fill form with session data if available
-            if (sessionData.time_signature) {
-                setTimeSignature(sessionData.time_signature);
-            }
-            if (sessionData.start_beat) setStartBeat(sessionData.start_beat);
-            if (sessionData.offset) setOffset(sessionData.offset);
-            if (sessionData.duration) setDuration(sessionData.duration.toString());
-            if (sessionData.resolution) setResolution(sessionData.resolution);
-        } catch (error) {
-            toast.error('Failed to load session: ' + error.message);
-            navigate('/');
-        } finally {
-            setIsLoading(false);
-        }
-    };
+    }, [loadSession]);
 
     const handleProcessAudio = async () => {
-        if (!session) return;
+        if (!session) {
+            return;
+        }
 
         setIsProcessing(true);
         try {
@@ -74,13 +79,17 @@ export default function SessionPage() {
                 resolution: resolution,
             };
 
-            await api.processAudio(sessionId, processRequest);
+            await processSessionAudio({
+                body: processRequest,
+                path: { session_id: session.session_id },
+            });
             toast.success('Audio processing started successfully!');
 
             // Reload session to get updated status
             await loadSession();
-        } catch (error) {
-            toast.error('Failed to process audio: ' + error.message);
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            toast.error('Failed to process audio: ' + errorMessage);
         } finally {
             setIsProcessing(false);
         }
@@ -92,8 +101,16 @@ export default function SessionPage() {
 
     const handleExportData = async () => {
         try {
-            const data = await api.exportData(sessionId);
-            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            if (!sessionId) {
+                throw new Error('Invalid session ID');
+            }
+            const exportData = await exportLabeledData({ path: { session_id: sessionId } });
+            if (!exportData || !exportData.data) {
+                throw new Error('No data to export');
+            }
+            const blob = new Blob([JSON.stringify(exportData.data, null, 2)], {
+                type: 'application/json',
+            });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
@@ -103,8 +120,9 @@ export default function SessionPage() {
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
             toast.success('Data exported successfully!');
-        } catch (error) {
-            toast.error('Failed to export data: ' + error.message);
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            toast.error('Failed to save label: ' + errorMessage);
         }
     };
 
@@ -116,11 +134,15 @@ export default function SessionPage() {
         }
 
         try {
-            await api.deleteSession(sessionId);
+            if (!sessionId) {
+                throw new Error('Invalid session ID');
+            }
+            await deleteSession({ path: { session_id: sessionId } });
             toast.success('Session deleted successfully');
             navigate('/');
         } catch (error) {
-            toast.error('Failed to delete session: ' + error.message);
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            toast.error('Failed to delete session: ' + errorMessage);
         }
     };
 
@@ -147,7 +169,9 @@ export default function SessionPage() {
     }
 
     const progressPercentage =
-        session.total_clips > 0 ? (session.labeled_clips / session.total_clips) * 100 : 0;
+        (session.total_clips ?? 0) > 0
+            ? ((session.labeled_clips ?? 0) / (session.total_clips ?? 1)) * 100
+            : 0;
 
     return (
         <div className='space-y-6'>
@@ -160,7 +184,10 @@ export default function SessionPage() {
                 <div>
                     <h1 className='text-2xl font-bold'>{session.filename}</h1>
                     <p className='text-muted-foreground'>
-                        Session created {new Date(session.created_at).toLocaleDateString()}
+                        Session created{' '}
+                        {session.created_at
+                            ? new Date(session.created_at).toLocaleDateString()
+                            : 'Unknown date'}
                     </p>
                 </div>
             </div>
@@ -338,7 +365,7 @@ export default function SessionPage() {
                                 </div>
                             </div>
 
-                            {session.processed && session.total_clips > 0 && (
+                            {session.processed && (session.total_clips ?? 0) > 0 && (
                                 <div className='space-y-2'>
                                     <div className='flex justify-between text-sm'>
                                         <span>Labeling Progress</span>
@@ -365,7 +392,7 @@ export default function SessionPage() {
                                 {session.processed ? 'Start Labeling' : 'Process Audio First'}
                             </Button>
 
-                            {session.labeled_clips > 0 && (
+                            {(session.labeled_clips ?? 0) > 0 && (
                                 <Button
                                     onClick={handleExportData}
                                     variant='outline'

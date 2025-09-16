@@ -1,40 +1,23 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router';
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from '@porcaro/components/ui/card';
-import { Button } from '@porcaro/components/ui/button';
-import { Progress } from '@porcaro/components/ui/progress';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@porcaro/components/ui/select';
-import { Badge } from '@porcaro/components/ui/badge';
-import { ArrowLeft, Check, X, Keyboard } from 'lucide-react';
 import { toast } from 'sonner';
-import {
-    getClips,
-    getSession,
-    getSessionProgress,
-    removeClipLabel,
-    type AudioClip,
-    type DrumLabel as DrumLabelValue,
-    type LabelingSession,
-    type SessionProgress,
-} from '@porcaro/api/generated';
-import { ClipLoadingSkeleton } from '@porcaro/components/LoadingSkeletons';
-import { DrumLabelBadge } from '@porcaro/components/ClipBadges';
-import { WaveformPlayer, type WaveformPlayerRef } from '@porcaro/components/WaveformPlayer';
-import { useKeyboardShortcuts, formatKeyboardShortcut } from '@porcaro/hooks/useKeyboardShortcuts';
 import { labelClip } from '@porcaro/api/generated';
 import { getClipAudioUrl } from '@porcaro/lib/api';
+import { Badge } from '@porcaro/components/ui/badge';
+import { useParams, useNavigate } from 'react-router';
+import { Button } from '@porcaro/components/ui/button';
+import { CardTitle } from '@porcaro/components/ui/card';
+import { Progress } from '@porcaro/components/ui/progress';
+import { SelectValue } from '@porcaro/components/ui/select';
+import { ArrowLeft, Check, X, Keyboard } from 'lucide-react';
+import { DrumLabelBadge } from '@porcaro/components/ClipBadges';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { ClipLoadingSkeleton } from '@porcaro/components/LoadingSkeletons';
+import { type LabelingSession, type SessionProgress } from '@porcaro/api/generated';
+import { type AudioClip, type DrumLabel as DrumLabelValue } from '@porcaro/api/generated';
+import { WaveformPlayer, type WaveformPlayerRef } from '@porcaro/components/WaveformPlayer';
+import { Card, CardContent, CardDescription, CardHeader } from '@porcaro/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger } from '@porcaro/components/ui/select';
+import { getClips, getSession, getSessionProgress, removeClipLabel } from '@porcaro/api/generated';
+import { useKeyboardShortcuts, formatKeyboardShortcut } from '@porcaro/hooks/useKeyboardShortcuts';
 
 interface DrumLabel {
     value: DrumLabelValue;
@@ -144,8 +127,9 @@ export default function LabelingPage() {
             if (filterStatus === 'unlabeled' || filterStatus === 'all') {
                 nextClip();
             }
-        } catch (error: any) {
-            toast.error('Failed to save label: ' + (error?.message || 'Unknown error'));
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            toast.error('Failed to save label: ' + errorMessage);
         } finally {
             setIsSaving(false);
         }
@@ -236,7 +220,7 @@ export default function LabelingPage() {
             });
         }
         setIsLoading(false);
-    }, [sessionId, filterStatus, navigate]);
+    }, [sessionId, filterStatus]);
 
     useEffect(() => {
         loadSessionAndClips();
