@@ -1,7 +1,8 @@
 import { StrictMode } from 'react';
-import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router';
+import { createRoot } from 'react-dom/client';
 import { Toaster } from '@porcaro/components/ui/sonner';
+
 import './index.css';
 import App from './App';
 

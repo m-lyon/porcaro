@@ -1,24 +1,20 @@
-import { useState, useEffect } from 'react';
+import { toast } from 'sonner';
+import { type ChangeEvent } from 'react';
 import { useNavigate } from 'react-router';
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from '@porcaro/components/ui/card';
-import { Button } from '@porcaro/components/ui/button';
+import { useState, useEffect } from 'react';
 import { Input } from '@porcaro/components/ui/input';
 import { Label } from '@porcaro/components/ui/label';
-import { Progress } from '@porcaro/components/ui/progress';
-import { Upload, Music, FileAudio, Calendar, BarChart3 } from 'lucide-react';
-import { toast } from 'sonner';
-import { api } from '@porcaro/lib/api';
+import { Button } from '@porcaro/components/ui/button';
+import { CardTitle } from '@porcaro/components/ui/card';
+import { Upload, Music, FileAudio } from 'lucide-react';
+import { ProgressCard } from '@porcaro/components/ProgressCard';
+import { createSession, type LabelingSession, listSessions } from '@porcaro/api/generated';
+import { Card, CardContent, CardDescription, CardHeader } from '@porcaro/components/ui/card';
 
 export default function HomePage() {
-    const [sessions, setSessions] = useState([]);
-    const [isUploading, setIsUploading] = useState(false);
-    const [selectedFile, setSelectedFile] = useState(null);
+    const [sessions, setSessions] = useState<LabelingSession[]>();
+    const [isUploading, setIsUploading] = useState<boolean>(false);
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -27,14 +23,19 @@ export default function HomePage() {
 
     const loadSessions = async () => {
         try {
-            const sessionsData = await api.listSessions();
-            setSessions(sessionsData);
-        } catch (error) {
-            toast.error('Failed to load sessions: ' + error.message);
+            const sessionsData = await listSessions();
+            if (!sessionsData.data) {
+                toast.error('Failed to load sessions: No data returned');
+                return;
+            }
+            setSessions(sessionsData.data);
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            toast.error('Failed to load sessions: ' + errorMessage);
         }
     };
 
-    const handleFileSelect = (event) => {
+    const handleFileSelect = (event: ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (file) {
             setSelectedFile(file);
@@ -42,30 +43,26 @@ export default function HomePage() {
     };
 
     const handleUpload = async () => {
-        if (!selectedFile) return;
+        if (!selectedFile) {
+            return;
+        }
 
         setIsUploading(true);
         try {
-            const session = await api.createSession(selectedFile);
-            toast.success(`Session created successfully: ${session.filename}`);
-            navigate(`/session/${session.session_id}`);
-        } catch (error) {
-            toast.error('Failed to create session: ' + error.message);
+            const session = await createSession({ body: { file: selectedFile } });
+            if (!session.data) {
+                toast.error('Failed to create session: No data returned');
+                return;
+            }
+            toast.success(`Session created successfully: ${session.data.filename}`);
+            navigate(`/session/${session.data.session_id}`);
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            toast.error('Failed to create session: ' + errorMessage);
         } finally {
             setIsUploading(false);
         }
     };
-
-    const formatDate = (dateString) => {
-        return new Date(dateString).toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-        });
-    };
-
     return (
         <div className='space-y-8'>
             {/* Upload Section */}
@@ -124,7 +121,7 @@ export default function HomePage() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    {sessions.length === 0 ? (
+                    {(sessions?.length ?? 0) === 0 ? (
                         <div className='text-center py-8'>
                             <FileAudio className='h-12 w-12 mx-auto text-muted-foreground mb-4' />
                             <h3 className='text-lg font-semibold mb-2'>No sessions yet</h3>
@@ -134,85 +131,8 @@ export default function HomePage() {
                         </div>
                     ) : (
                         <div className='space-y-4'>
-                            {sessions.map((session) => (
-                                <Card
-                                    key={session.session_id}
-                                    className='border-2 hover:border-primary/50 transition-colors'
-                                >
-                                    <CardContent className='p-4'>
-                                        <div className='flex items-center justify-between'>
-                                            <div className='space-y-2 flex-1'>
-                                                <div className='flex items-center gap-2'>
-                                                    <h3 className='font-semibold'>
-                                                        {session.filename}
-                                                    </h3>
-                                                    {session.processed ? (
-                                                        <span className='px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs'>
-                                                            Processed
-                                                        </span>
-                                                    ) : (
-                                                        <span className='px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs'>
-                                                            Pending
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                <div className='flex items-center gap-4 text-sm text-muted-foreground'>
-                                                    <span className='flex items-center gap-1'>
-                                                        <Calendar className='h-3 w-3' />
-                                                        {formatDate(session.created_at)}
-                                                    </span>
-                                                    {session.bpm && (
-                                                        <span>{session.bpm.toFixed(1)} BPM</span>
-                                                    )}
-                                                    {session.processed && (
-                                                        <span className='flex items-center gap-1'>
-                                                            <BarChart3 className='h-3 w-3' />
-                                                            {session.labeled_clips}/
-                                                            {session.total_clips} labeled
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                {session.processed && session.total_clips > 0 && (
-                                                    <div className='space-y-1'>
-                                                        <div className='flex justify-between text-sm'>
-                                                            <span>Progress</span>
-                                                            <span>
-                                                                {(
-                                                                    (session.labeled_clips /
-                                                                        session.total_clips) *
-                                                                    100
-                                                                ).toFixed(1)}
-                                                                %
-                                                            </span>
-                                                        </div>
-                                                        <Progress
-                                                            value={
-                                                                (session.labeled_clips /
-                                                                    session.total_clips) *
-                                                                100
-                                                            }
-                                                            className='h-2'
-                                                        />
-                                                    </div>
-                                                )}
-                                            </div>
-                                            <div className='ml-4'>
-                                                <Button
-                                                    onClick={() =>
-                                                        navigate(`/session/${session.session_id}`)
-                                                    }
-                                                    variant={
-                                                        session.processed ? 'default' : 'secondary'
-                                                    }
-                                                >
-                                                    {session.processed
-                                                        ? 'Continue Labeling'
-                                                        : 'Configure'}
-                                                </Button>
-                                            </div>
-                                        </div>
-                                    </CardContent>
-                                </Card>
+                            {sessions?.map((session) => (
+                                <ProgressCard key={session.session_id} session={session} />
                             ))}
                         </div>
                     )}
