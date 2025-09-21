@@ -16,9 +16,15 @@ class DrumLabel(str, Enum):
 
     KICK_DRUM = 'KD'
     SNARE_DRUM = 'SD'
+    SNARE_DRUM_XSTICK = 'SDX'
     HI_HAT = 'HH'
+    HI_HAT_OPEN = 'HHO'
+    HI_HAT_CLOSED = 'HHC'
     RIDE_CYMBAL = 'RC'
     TOM_TOM = 'TT'
+    FLOOR_TOM = 'TTF'
+    MID_TOM = 'TTM'
+    HIGH_TOM = 'TTH'
     CRASH_CYMBAL = 'CC'
 
 

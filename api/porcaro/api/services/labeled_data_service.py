@@ -3,9 +3,9 @@
 import json
 import shutil
 import logging
+import datetime
 from typing import Any
 from pathlib import Path
-from datetime import datetime
 
 import numpy as np
 
@@ -128,19 +128,19 @@ class LabeledDataService:
                 'files': {
                     'model_input_audio_file': audio_file.name,
                 },
-                'saved_at': datetime.now().isoformat(),
+                'saved_at': datetime.datetime.now(tz=datetime.UTC).isoformat(),
             }
 
             # Save metadata
             metadata_file = self._get_metadata_file(session.session_id, clip.clip_id)
-            with open(metadata_file, 'w') as f:
+            with metadata_file.open('w') as f:
                 json.dump(metadata, f, indent=2)
 
             logger.info(f'Saved labeled clip {clip.clip_id} to {clip_dir}')
             return True
 
-        except Exception as e:
-            logger.error(f'Error saving labeled clip {clip.clip_id}: {str(e)}')
+        except Exception:
+            logger.exception(f'Error saving labeled clip {clip.clip_id}')
             return False
 
     def remove_labeled_clip(self, session_id: str, clip_id: str) -> bool:
@@ -165,8 +165,8 @@ class LabeledDataService:
             logger.info(f'Removed labeled clip {clip_id} from {clip_dir}')
             return True
 
-        except Exception as e:
-            logger.error(f'Error removing labeled clip {clip_id}: {str(e)}')
+        except Exception:
+            logger.exception(f'Error removing labeled clip {clip_id}')
             return False
 
     def get_labeled_clips_for_session(self, session_id: str) -> list[dict[str, Any]]:
@@ -194,21 +194,17 @@ class LabeledDataService:
                 metadata_file = clip_dir / self.METADATA_FILENAME
                 if metadata_file.exists():
                     try:
-                        with open(metadata_file) as f:
+                        with metadata_file.open() as f:
                             metadata = json.load(f)
                         labeled_clips.append(metadata)
-                    except json.JSONDecodeError as e:
-                        logger.error(
-                            f'Error reading metadata file {metadata_file}: {str(e)}'
-                        )
+                    except json.JSONDecodeError:
+                        logger.exception(f'Error reading metadata file {metadata_file}')
                         continue
 
             return labeled_clips
 
-        except Exception as e:
-            logger.error(
-                f'Error getting labeled clips for session {session_id}: {str(e)}'
-            )
+        except Exception:
+            logger.exception(f'Error getting labeled clips for session {session_id}')
             return []
 
     def remove_session(self, session_id: str) -> bool:
@@ -230,8 +226,8 @@ class LabeledDataService:
             logger.info(f'Removed labeled data for session {session_id}')
             return True
 
-        except Exception as e:
-            logger.error(f'Error removing session {session_id}: {str(e)}')
+        except Exception:
+            logger.exception(f'Error removing session {session_id}')
             return False
 
     def get_all_labeled_clips(self) -> list[dict[str, Any]]:
@@ -254,8 +250,8 @@ class LabeledDataService:
                 session_clips = self.get_labeled_clips_for_session(session_dir.name)
                 all_clips.extend(session_clips)
 
-        except Exception as e:
-            logger.error(f'Error getting all labeled clips: {str(e)}')
+        except Exception:
+            logger.exception('Error getting all labeled clips')
 
         return all_clips
 
@@ -312,7 +308,7 @@ class LabeledDataService:
             return stats
 
         except Exception as e:
-            logger.error(f'Error getting statistics: {str(e)}')
+            logger.exception('Error getting statistics')
             return {'error': str(e)}
 
 

@@ -32,9 +32,15 @@ type FilterStatus = 'all' | 'labeled' | 'unlabeled';
 const DRUM_LABELS: DrumLabel[] = [
     { value: 'KD', label: 'Kick Drum', color: 'bg-red-500', key: '1' },
     { value: 'SD', label: 'Snare Drum', color: 'bg-blue-500', key: '2' },
+    { value: 'SDX', label: 'Snare Drum (X-Stick)', color: 'bg-blue-500', key: 'W' },
     { value: 'HH', label: 'Hi-Hat', color: 'bg-green-500', key: '3' },
+    { value: 'HHO', label: 'Hi-Hat Open', color: 'bg-green-500', key: 'E' },
+    { value: 'HHC', label: 'Hi-Hat Closed', color: 'bg-green-500', key: 'D' },
     { value: 'RC', label: 'Ride Cymbal', color: 'bg-yellow-500', key: '4' },
     { value: 'TT', label: 'Tom-Tom', color: 'bg-purple-500', key: '5' },
+    { value: 'TTF', label: 'Floor Tom', color: 'bg-purple-500', key: 'T' },
+    { value: 'TTM', label: 'Mid Tom', color: 'bg-purple-500', key: 'G' },
+    { value: 'TTH', label: 'High Tom', color: 'bg-purple-500', key: 'B' },
     { value: 'CC', label: 'Crash Cymbal', color: 'bg-orange-500', key: '6' },
 ];
 

@@ -10,19 +10,19 @@ LABEL_PITCH_MAP = {
     'REST': music21.note.Rest,
     'KD': partial(music21.note.Note, 'F4'),
     'SD': partial(music21.note.Note, 'C5'),
-    'SD_xstick': partial(music21.note.Note, 'C5'),
-    'HH_close': partial(music21.note.Note, 'G5'),
-    'HH_open': partial(music21.note.Note, 'G5'),
+    'SDX': partial(music21.note.Note, 'C5'),
+    'HHC': partial(music21.note.Note, 'G5'),
+    'HHO': partial(music21.note.Note, 'G5'),
     'RC': partial(music21.note.Note, 'G5'),
     'CC': partial(music21.note.Note, 'A5'),
-    'HT': partial(music21.note.Note, 'E5'),
-    'MT': partial(music21.note.Note, 'D5'),
-    'FT': partial(music21.note.Note, 'A4'),
+    'TTH': partial(music21.note.Note, 'E5'),
+    'TTM': partial(music21.note.Note, 'D5'),
+    'TTF': partial(music21.note.Note, 'A4'),
     'HH': partial(music21.note.Note, 'G5'),
     'TT': partial(music21.note.Note, 'E5'),
 }
 
-NOTEHEAD_MAP = {'HH_close': 'x', 'HH_open': 'circle-x', 'RC': 'x', 'HH': 'x'}
+NOTEHEAD_MAP = {'HHC': 'x', 'HHO': 'circle-x', 'RC': 'x', 'HH': 'x'}
 
 
 def get_note_from_label(

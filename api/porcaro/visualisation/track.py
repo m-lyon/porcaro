@@ -5,6 +5,7 @@ import pandas as pd
 import librosa.display
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
+from matplotlib.figure import Figure
 
 
 def plot_track(
@@ -12,7 +13,7 @@ def plot_track(
     sr: int | float,
     start: float = 0,
     stop: float | None = None,
-):
+) -> tuple[Figure, Axes]:
     '''Plot the audio track.
 
     Args:
@@ -99,8 +100,8 @@ def add_measures(
 
     Args:
         ax (matplotlib.axes.Axes): The axes to add the measures to.
-        measures (np.ndarray): The measure times in seconds.
-        start (float): The start time in seconds.
+        grid (np.ndarray): The grid to add measures from.
+        grid_type (str): The type of grid ('eighth' for eighth notes).
         colour (str): The color of the measure lines.
         start (float): The start time in seconds.
 

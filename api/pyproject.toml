@@ -18,6 +18,9 @@ dependencies = [
     "uvicorn[standard]>=0.31.1",
 ]
 
+[project.scripts]
+labeler = "porcaro.api.app:main"
+
 [build-system]
 requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
@@ -33,6 +36,3 @@ dev = [
     "matplotlib>=3.10.3",
     "pytubefix>=8.13.1",
 ]
-
-[tool.ruff.format]
-quote-style = "preserve"
