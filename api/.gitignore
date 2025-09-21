@@ -178,6 +178,21 @@ scratch/
 
 # don't track model weights
 *.pt
+*.th
 
 # labeled data directory - contains user-generated training data
 labeled_data/
+
+# VSCode settings
+.vscode/*
+
+# Audio data
+*.wav
+*.mp3
+*.flac
+*.ogg
+*.m4a
+
+# music score files
+*.pdf
+*.musicxml

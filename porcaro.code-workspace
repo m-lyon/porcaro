@@ -1,0 +1,15 @@
+{
+	"folders": [
+		{
+			"path": "api"
+		},
+		{
+			"path": "client"
+		}
+	],
+	"settings": {
+		"editor.codeActionsOnSave": {
+			"source.fixAll.eslint": "explicit"
+		},
+	}
+}
