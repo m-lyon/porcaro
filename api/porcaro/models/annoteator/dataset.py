@@ -9,7 +9,7 @@ import librosa
 class DrumHitPredictDataset(torch.utils.data.Dataset):
     '''Dataset for drum hits.'''
 
-    def __init__(self, data: pd.DataFrame, sr: int | float) -> None:
+    def __init__(self, data: pd.DataFrame, sr: int | float):
         '''Initialize the DrumHitDataset.
 
         Args:

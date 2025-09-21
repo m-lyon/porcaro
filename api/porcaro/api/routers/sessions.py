@@ -3,7 +3,7 @@
 import logging
 from pathlib import Path
 
-from fastapi import File
+import anyio
 from fastapi import APIRouter
 from fastapi import UploadFile
 from fastapi import HTTPException
@@ -11,8 +11,8 @@ from fastapi import status
 from fastapi.responses import JSONResponse
 
 from porcaro.api.models import LabelingSession
+from porcaro.api.models import SessionProgress
 from porcaro.api.models import ProcessAudioRequest
-from porcaro.api.models import SessionProgressResponse
 from porcaro.api.services.audio_service import process_audio_file
 from porcaro.api.services.audio_service import dataframe_to_audio_clips
 from porcaro.api.services.session_service import session_store
@@ -22,8 +22,8 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@router.post('/', response_model=LabelingSession)
-async def create_session(file: UploadFile = File(...)):
+@router.post('/', operation_id='create_session')
+async def create_session(file: UploadFile) -> LabelingSession:
     '''Create a new labeling session by uploading an audio file.'''
     if not file.filename:
         raise HTTPException(
@@ -39,25 +39,30 @@ async def create_session(file: UploadFile = File(...)):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f'Unsupported file format. Allowed: {", ".join(allowed_extensions)}',
         )
-
     try:
         # Create session
         session = session_store.create_session(file.filename)
+    except Exception as e:
+        logger.exception('Error creating session from session store')
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail='Failed to create session',
+        ) from e
 
-        # Save uploaded file to temporary directory
-        session_data = session_store.get_session_data(session.session_id)
-        if not session_data:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail='Failed to create session data',
-            )
-
+    # Save uploaded file to temporary directory
+    session_data = session_store.get_session_data(session.session_id)
+    if not session_data:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail='Failed to create session data',
+        )
+    try:
         file_path = session_data.temp_dir / file.filename
 
         # Write uploaded file
-        with open(file_path, 'wb') as buffer:
+        async with await anyio.open_file(file_path, 'wb') as buffer:
             content = await file.read()
-            buffer.write(content)
+            await buffer.write(content)
 
         # Store file path in session data
         session_store.update_session_data(session.session_id, {'file_path': file_path})
@@ -66,15 +71,15 @@ async def create_session(file: UploadFile = File(...)):
         return session
 
     except Exception as e:
-        logger.error(f'Error creating session: {str(e)}')
+        logger.exception('Error creating session')
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail='Failed to create session',
         ) from e
 
 
-@router.get('/{session_id}', response_model=LabelingSession)
-async def get_session(session_id: str):
+@router.get('/{session_id}', operation_id='get_session')
+async def get_session(session_id: str) -> LabelingSession:
     '''Get session information by ID.'''
     session = session_store.get_session(session_id)
     if not session:
@@ -85,8 +90,10 @@ async def get_session(session_id: str):
     return session
 
 
-@router.post('/{session_id}/process')
-async def process_session_audio(session_id: str, request: ProcessAudioRequest):
+@router.post('/{session_id}/process', operation_id='process_session_audio')
+async def process_session_audio(
+    session_id: str, request: ProcessAudioRequest
+) -> JSONResponse:
     '''Process the uploaded audio file through the transcription pipeline.'''
     session = session_store.get_session(session_id)
     if not session:
@@ -156,15 +163,15 @@ async def process_session_audio(session_id: str, request: ProcessAudioRequest):
         )
 
     except Exception as e:
-        logger.error(f'Error processing audio for session {session_id}: {str(e)}')
+        logger.exception(f'Error processing audio for session {session_id}')
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f'Failed to process audio: {str(e)}',
+            detail=f'Failed to process audio: {e!s}',
         ) from e
 
 
-@router.get('/{session_id}/progress', response_model=SessionProgressResponse)
-async def get_session_progress(session_id: str):
+@router.get('/{session_id}/progress', operation_id='get_session_progress')
+async def get_session_progress(session_id: str) -> SessionProgress:
     '''Get the labeling progress for a session.'''
     session = session_store.get_session(session_id)
     if not session:
@@ -187,7 +194,7 @@ async def get_session_progress(session_id: str):
     total_clips = session.total_clips
     progress_percentage = (labeled_count / total_clips * 100) if total_clips > 0 else 0
 
-    return SessionProgressResponse(
+    return SessionProgress(
         session_id=session_id,
         total_clips=total_clips,
         labeled_clips=labeled_count,
@@ -196,8 +203,8 @@ async def get_session_progress(session_id: str):
     )
 
 
-@router.delete('/{session_id}')
-async def delete_session(session_id: str):
+@router.delete('/{session_id}', operation_id='delete_session')
+async def delete_session(session_id: str) -> JSONResponse:
     '''Delete a session and clean up resources.'''
     success = session_store.delete_session(session_id)
     if not success:
@@ -211,8 +218,8 @@ async def delete_session(session_id: str):
     )
 
 
-@router.get('/', response_model=list[LabelingSession])
-async def list_sessions():
+@router.get('/', operation_id='list_sessions')
+async def list_sessions() -> list[LabelingSession]:
     '''List all active sessions.'''
     sessions = session_store.list_sessions()
     return list(sessions.values())

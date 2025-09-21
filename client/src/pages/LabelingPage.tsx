@@ -1,4 +1,5 @@
 import { toast } from 'sonner';
+import { useDebounce } from 'use-debounce';
 import { labelClip } from '@porcaro/api/generated';
 import { getClipAudioUrl } from '@porcaro/lib/api';
 import { Badge } from '@porcaro/components/ui/badge';
@@ -58,6 +59,7 @@ export default function LabelingPage() {
     const [progress, setProgress] = useState<SessionProgress | null>(null);
     const [showShortcuts, setShowShortcuts] = useState<boolean>(false);
     const [playbackWindow, setPlaybackWindow] = useState<number[]>([1.0]);
+    const [debouncedPlaybackWindow] = useDebounce(playbackWindow[0], 500);
 
     const togglePlayback = () => {
         if (waveformPlayerRef.current) {
@@ -394,7 +396,7 @@ export default function LabelingPage() {
                                     ? getClipAudioUrl(
                                           sessionId,
                                           currentClip.clip_id,
-                                          playbackWindow[0]
+                                          debouncedPlaybackWindow
                                       )
                                     : ''
                             }

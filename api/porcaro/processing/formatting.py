@@ -43,7 +43,7 @@ def format_for_prediction(
         for start, end in zip(clip_sample_starts, clip_sample_ends, strict=False)
     ]
 
-    df = pd.DataFrame.from_dict(
+    data_df = pd.DataFrame.from_dict(
         {
             'audio_clip': audio_clips,
             'start_sample': clip_sample_starts,
@@ -56,4 +56,4 @@ def format_for_prediction(
         }
     )
 
-    return df
+    return data_df

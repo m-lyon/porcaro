@@ -40,9 +40,7 @@ class AudioClip(BaseModel):
     sample_rate: int = Field(..., description='Sample rate of the audio')
     peak_sample: int = Field(..., description='Sample where the peak occurs')
     peak_time: float = Field(..., description='Time in seconds where the peak occurs')
-    predicted_labels: list[DrumLabel] = Field(
-        default=[], description='ML model predictions'
-    )
+    predicted_labels: list[DrumLabel] = Field(description='ML model predictions')
     user_label: list[DrumLabel] | None = Field(
         default=None, description='User-assigned label'
     )
@@ -113,6 +111,11 @@ class LabelingSessionData(BaseModel):
         default=None, description='Additional metadata'
     )
 
+    class Config:
+        '''Pydantic configuration.'''
+
+        arbitrary_types_allowed = True
+
 
 class ProcessAudioRequest(BaseModel):
     '''Request model for processing audio.'''
@@ -142,7 +145,7 @@ class ClipListResponse(BaseModel):
     has_next: bool = Field(..., description='Whether there are more pages')
 
 
-class SessionProgressResponse(BaseModel):
+class SessionProgress(BaseModel):
     '''Response model for session progress.'''
 
     session_id: str

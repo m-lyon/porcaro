@@ -17,7 +17,7 @@ from porcaro.api.services.labeled_data_service import labeled_data_service
 logger = logging.getLogger(__name__)
 
 
-T = TypeVar("T", bound=BaseModel)
+T = TypeVar('T', bound=BaseModel)
 
 
 def update_model(container: dict[str, T], model_id: str, updates: dict) -> T | None:
@@ -36,7 +36,7 @@ def update_model(container: dict[str, T], model_id: str, updates: dict) -> T | N
 class SessionStore:
     '''In-memory store for labeling sessions.'''
 
-    def __init__(self):
+    def __init__(self) -> None:
         '''Initialize the session store.'''
         self._sessions: dict[str, LabelingSession] = {}
         self._session_data: dict[str, LabelingSessionData] = {}
@@ -82,10 +82,8 @@ class SessionStore:
         # Clean up labeled data - import here to avoid circular imports
         try:
             labeled_data_service.remove_session(session_id)
-        except Exception as e:
-            logger.error(
-                f'Error removing labeled data for session {session_id}: {str(e)}'
-            )
+        except Exception:
+            logger.exception(f'Error removing labeled data for session {session_id}')
 
         # Remove from stores
         del self._sessions[session_id]

@@ -21,6 +21,7 @@ from porcaro.processing.window import get_windowed_sample
 logger = logging.getLogger(__name__)
 
 LABEL_MAPPING = {label.value: label for label in DrumLabel}
+BPM_THRESHOLD = 110  # BPM threshold for onset detection hop length
 
 
 def convert_time_signature(ts_model: TimeSignatureModel) -> TimeSignature:
@@ -57,22 +58,24 @@ def process_audio_file(
 
     # Get onsets
     onsets = get_librosa_onsets(
-        track, song_data.sample_rate, hop_length=1024 if song_data.bpm < 110 else 512
+        track,
+        song_data.sample_rate,
+        hop_length=1024 if song_data.bpm < BPM_THRESHOLD else 512,
     )
 
     # Run prediction
-    df = run_prediction_on_track(track, onsets, song_data, resolution)
+    pred_df = run_prediction_on_track(track, onsets, song_data, resolution)
 
     # Prepare metadata
     metadata = SessionMetadata(
         bpm=song_data.bpm.bpm,
         sample_rate=song_data.sample_rate,
         duration=song_data.duration,
-        total_clips=len(df),
+        total_clips=len(pred_df),
     )
 
-    logger.info(f'Processed {len(df)} clips with BPM {song_data.bpm}')
-    return track, df, metadata
+    logger.info(f'Processed {len(pred_df)} clips with BPM {song_data.bpm}')
+    return track, pred_df, metadata
 
 
 def dataframe_to_audio_clips(df: pd.DataFrame, session_id: str) -> list[AudioClip]:
