@@ -8,16 +8,18 @@ from fastapi import APIRouter
 from fastapi import UploadFile
 from fastapi import HTTPException
 from fastapi import status
-from fastapi.responses import JSONResponse
 
-from porcaro.api.models import LabelingSession
+from porcaro.api.utils import get_filepath_from_session
 from porcaro.api.models import SessionProgress
 from porcaro.api.models import ProcessAudioRequest
+from porcaro.api.models import DeleteSessionResponse
+from porcaro.api.models import ProcessAudioSessionResponse
+from porcaro.api.database.models import LabelingSession
 from porcaro.api.services.audio_service import process_audio_file
-from porcaro.api.services.audio_service import dataframe_to_audio_clips
-from porcaro.api.services.session_service import session_store
+from porcaro.api.services.memory_service import in_memory_service
+from porcaro.api.services.database_service import database_session_service
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('uvicorn')
 
 router = APIRouter()
 
@@ -41,33 +43,24 @@ async def create_session(file: UploadFile) -> LabelingSession:
         )
     try:
         # Create session
-        session = session_store.create_session(file.filename)
+        session = database_session_service.create_session(file.filename)
     except Exception as e:
-        logger.exception('Error creating session from session store')
+        logger.exception('Error creating session from database service')
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail='Failed to create session',
         ) from e
 
-    # Save uploaded file to temporary directory
-    session_data = session_store.get_session_data(session.session_id)
-    if not session_data:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail='Failed to create session data',
-        )
+    # Save uploaded file to disk
     try:
-        file_path = session_data.temp_dir / file.filename
+        file_path = get_filepath_from_session(session)
 
         # Write uploaded file
         async with await anyio.open_file(file_path, 'wb') as buffer:
             content = await file.read()
             await buffer.write(content)
 
-        # Store file path in session data
-        session_store.update_session_data(session.session_id, {'file_path': file_path})
-
-        logger.info(f'Created session {session.session_id} with file {file.filename}')
+        logger.info(f'Saved {file.filename} to disk')
         return session
 
     except Exception as e:
@@ -81,7 +74,7 @@ async def create_session(file: UploadFile) -> LabelingSession:
 @router.get('/{session_id}', operation_id='get_session')
 async def get_session(session_id: str) -> LabelingSession:
     '''Get session information by ID.'''
-    session = session_store.get_session(session_id)
+    session = database_session_service.get_session(session_id)
     if not session:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail='Session not found'
@@ -93,16 +86,16 @@ async def get_session(session_id: str) -> LabelingSession:
 @router.post('/{session_id}/process', operation_id='process_session_audio')
 async def process_session_audio(
     session_id: str, request: ProcessAudioRequest
-) -> JSONResponse:
+) -> ProcessAudioSessionResponse:
     '''Process the uploaded audio file through the transcription pipeline.'''
-    session = session_store.get_session(session_id)
+    session = database_session_service.get_session(session_id)
     if not session:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail='Session not found'
         )
 
-    session_data = session_store.get_session_data(session_id)
-    if not session_data or session_data.file_path is None:
+    file_path = get_filepath_from_session(session)
+    if not file_path.exists():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail='No audio file found for session',
@@ -112,8 +105,8 @@ async def process_session_audio(
         logger.info(f'Processing audio for session {session_id}')
 
         # Process audio through porcaro pipeline
-        track, df, metadata = process_audio_file(
-            file_path=session_data.file_path,
+        track, df, bpm, total_clips, metadata = process_audio_file(
+            file_path=file_path,
             time_sig=request.time_signature,
             start_beat=request.start_beat,
             offset=request.offset,
@@ -121,45 +114,30 @@ async def process_session_audio(
             resolution=request.resolution,
         )
 
-        # Convert DataFrame to AudioClip models
-        clips = dataframe_to_audio_clips(df, session_id)
+        # Save processed data in memory for quick access
+        in_memory_service.set_session_track(session_id, track)
 
-        # Store clips and data
-        session_store.update_session_data(
-            session_id,
-            {
-                'clips': {clip.clip_id: clip for clip in clips},
-                'dataframe': df,
-                'audio_track': track,
-                'metadata': metadata,
-            },
-        )
+        # Save clips to database
+        num_clips = database_session_service.save_clips_from_dataframe(session_id, df)
 
         # Update session with processing results
-        session_store.update_session(
+        database_session_service.update_session(
             session_id,
             {
                 'time_signature': request.time_signature,
                 'start_beat': request.start_beat,
                 'offset': request.offset,
-                'duration': request.duration,
                 'resolution': request.resolution,
-                'bpm': metadata.bpm,
-                'total_clips': metadata.total_clips,
-                'processed': True,
+                'bpm': bpm,
+                'total_clips': total_clips,
+                'processing_metadata': metadata,
             },
         )
 
-        logger.info(f'Processing complete for session {session_id}: {len(clips)} clips')
+        logger.info(f'Processing complete for session {session_id}: {num_clips} clips')
 
-        return JSONResponse(
-            status_code=status.HTTP_200_OK,
-            content={
-                'message': 'Audio processing completed',
-                'total_clips': len(clips),
-                'bpm': metadata.bpm,
-                'duration': metadata.duration,
-            },
+        return ProcessAudioSessionResponse(
+            total_clips=total_clips, bpm=bpm, duration=metadata.duration
         )
 
     except Exception as e:
@@ -173,53 +151,32 @@ async def process_session_audio(
 @router.get('/{session_id}/progress', operation_id='get_session_progress')
 async def get_session_progress(session_id: str) -> SessionProgress:
     '''Get the labeling progress for a session.'''
-    session = session_store.get_session(session_id)
+    session = database_session_service.get_session(session_id)
     if not session:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail='Session not found'
         )
 
-    # Count labeled clips
-    session_data = session_store.get_session_data(session_id)
-    labeled_count = 0
-
-    if session_data:
-        labeled_count = sum(
-            1 for clip in session_data.clips.values() if clip.user_label is not None
-        )
-
-    # Update session with current count
-    session_store.update_session(session_id, {'labeled_clips': labeled_count})
-
     total_clips = session.total_clips
-    progress_percentage = (labeled_count / total_clips * 100) if total_clips > 0 else 0
+    labeled_clips = session.labeled_clips
+    progress_percentage = (labeled_clips / total_clips * 100) if total_clips > 0 else 0
 
     return SessionProgress(
         session_id=session_id,
         total_clips=total_clips,
-        labeled_clips=labeled_count,
+        labeled_clips=labeled_clips,
         progress_percentage=round(progress_percentage, 2),
-        remaining_clips=total_clips - labeled_count,
+        remaining_clips=total_clips - labeled_clips,
     )
 
 
 @router.delete('/{session_id}', operation_id='delete_session')
-async def delete_session(session_id: str) -> JSONResponse:
+async def delete_session(session_id: str) -> DeleteSessionResponse:
     '''Delete a session and clean up resources.'''
-    success = session_store.delete_session(session_id)
+    success = database_session_service.delete_session(session_id)
     if not success:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail='Session not found'
         )
 
-    return JSONResponse(
-        status_code=status.HTTP_200_OK,
-        content={'message': 'Session deleted successfully'},
-    )
-
-
-@router.get('/', operation_id='list_sessions')
-async def list_sessions() -> list[LabelingSession]:
-    '''List all active sessions.'''
-    sessions = session_store.list_sessions()
-    return list(sessions.values())
+    return DeleteSessionResponse(success=True, session_id=session_id)

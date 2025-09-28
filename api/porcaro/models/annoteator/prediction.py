@@ -38,7 +38,7 @@ def run_prediction(
             # using a threshold of 0.5. If there are no hits in a batch, set the highest
             # probability in each sample to 1.0, otherwise set it to 0.0.
             outputs = outputs.cpu().numpy()
-            outputs = np.where(outputs > 0.5, 1.0, 0.0)
+            outputs = np.where(outputs > 0.5, 1.0, 0.0)  # noqa: PLR2004
 
             # Vectorized operation to handle cases where no hits are present
             no_hits_mask = np.sum(outputs, axis=1) == 0

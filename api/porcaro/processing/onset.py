@@ -5,24 +5,28 @@ import logging
 import numpy as np
 import librosa
 
+from porcaro.utils.bpm import BPM
+
 logger = logging.getLogger(__name__)
 
 
-def get_librosa_onsets(
+def get_librosa_onsets_v1(
     track: np.ndarray,
     sample_rate: int | float,
-    hop_length: int,
+    bpm: float | BPM | int,
 ) -> np.ndarray:
     '''Convert onset frames to samples.
 
     Args:
         track (np.ndarray): The audio track to analyze.
         sample_rate (int | float): The sample rate of the audio track.
-        hop_length (int): The hop length for onset detection.
+        bpm (float): The estimated BPM of the track.
 
     Returns:
         np.ndarray: Array of onset sample indices.
     '''
+    bpm_threshold = 110
+    hop_length = 1024 if bpm < bpm_threshold else 512
     onset_env = librosa.onset.onset_strength(
         y=track, sr=sample_rate, hop_length=hop_length
     )

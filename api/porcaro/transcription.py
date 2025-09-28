@@ -11,7 +11,7 @@ import music21
 from porcaro.utils import SongData
 from porcaro.utils import TimeSignature
 from porcaro.utils.bpm import BPM
-from porcaro.processing.onset import get_librosa_onsets
+from porcaro.processing.onset import get_librosa_onsets_v1
 from porcaro.processing.sheet import construct_sheet
 from porcaro.processing.window import get_onsets_window_size
 from porcaro.processing.matching import eighth_note_grid_matching
@@ -58,7 +58,7 @@ def load_song_data(
     return track, song_data
 
 
-def run_prediction_on_track(
+def run_prediction_on_track_v1(
     track: np.ndarray,
     onsets: np.ndarray,
     song_data: SongData,
@@ -84,15 +84,15 @@ def run_prediction_on_track(
     # Get window size
     window_size = get_onsets_window_size(resolution, song_data, onsets)
     # Format data into a DataFrame for prediction
-    df = format_for_prediction(track, song_data, onsets, window_size)
+    pred_df = format_for_prediction(track, song_data, onsets, window_size)
     # Apply resampling to the dataframe to ensure the audio clip length is consistent
     # for the model.
-    apply_resampling_to_dataframe(df, target_length=8820)
+    apply_resampling_to_dataframe(pred_df, target_length=8820)
     # Apply compression to the dataframe
-    apply_compression_to_dataframe(df)
+    apply_compression_to_dataframe(pred_df)
     # Run prediction
-    df = run_prediction(df, song_data.sample_rate)
-    return df
+    pred_df = run_prediction(pred_df, song_data.sample_rate)
+    return pred_df
 
 
 def transcribe_drum_audio(
@@ -128,12 +128,10 @@ def transcribe_drum_audio(
     # Load the audio file and extract song metadata
     track, song_data = load_song_data(fpath, time_sig, start_beat, offset, duration)
     # Get onsets
-    onsets = get_librosa_onsets(
-        track, song_data.sample_rate, hop_length=1024 if song_data.bpm < 110 else 512
-    )
-    df = run_prediction_on_track(track, onsets, song_data, resolution)
+    onsets = get_librosa_onsets_v1(track, song_data.sample_rate, song_data.bpm)
+    pred_df = run_prediction_on_track_v1(track, onsets, song_data, resolution)
     # Match notes via eighth note grid algorithm
-    matched_durations, matched_notes = eighth_note_grid_matching(df, song_data)
+    matched_durations, matched_notes = eighth_note_grid_matching(pred_df, song_data)
     # Construct the sheet music
     sheet = construct_sheet(matched_durations, matched_notes, time_sig)
     return sheet
