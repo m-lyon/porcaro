@@ -277,3 +277,210 @@ def test_get_all_labeled_clips(test_db_service):
     user_labels = [clip.user_label[0] for clip in all_labeled_clips]
     assert DrumLabel.KICK_DRUM in user_labels
     assert DrumLabel.SNARE_DRUM in user_labels
+
+
+def test_save_clips_from_dataframe(test_db_service):
+    '''Test saving clips from pandas DataFrame.'''
+    import numpy as np
+    import pandas as pd
+
+    session = test_db_service.create_session('test_audio.wav')
+
+    # Create test DataFrame with clips data
+    rng = np.random.default_rng(42)
+    clips_data = {
+        'start_sample': [100, 300, 500],
+        'start_time': [0.1, 0.3, 0.5],
+        'end_sample': [200, 400, 600],
+        'end_time': [0.2, 0.4, 0.6],
+        'sampling_rate': [44100, 44100, 44100],
+        'peak_sample': [150, 350, 550],
+        'peak_time': [0.15, 0.35, 0.55],
+        'hits': [['KD'], ['SD'], ['HH']],
+        'audio_clip': [
+            rng.random(100),
+            rng.random(100),
+            rng.random(100),
+        ],
+    }
+    clips_df = pd.DataFrame(clips_data)
+
+    # Mock file operations since we're testing database functionality
+    from unittest.mock import patch
+
+    with (
+        patch('porcaro.api.services.database_service.get_clip_filepath') as mock_path,
+        patch('numpy.save'),
+    ):
+        # Mock file paths
+        import tempfile
+
+        with (
+            tempfile.NamedTemporaryFile(suffix='.npy') as tmp1,
+            tempfile.NamedTemporaryFile(suffix='.npy') as tmp2,
+            tempfile.NamedTemporaryFile(suffix='.npy') as tmp3,
+        ):
+            mock_path.side_effect = [tmp1.name, tmp2.name, tmp3.name]
+
+            count = test_db_service.save_clips_from_dataframe(session.id, clips_df)
+
+            assert count == 3
+
+    # Verify clips were saved to database
+    clips, total = test_db_service.get_clips(session.id)
+    assert total == 3
+    assert len(clips) == 3
+
+    # Check that predicted labels were mapped correctly
+    expected_labels = [DrumLabel.KICK_DRUM, DrumLabel.SNARE_DRUM, DrumLabel.HI_HAT]
+    actual_labels = [clip.predicted_labels[0] for clip in clips]
+    assert set(actual_labels) == set(expected_labels)
+
+
+def test_get_clip(test_db_service):
+    '''Test getting a specific clip by ID.'''
+    session = test_db_service.create_session('test_audio.wav')
+
+    # Create and save a clip
+    clip = AudioClip(
+        start_sample=100,
+        start_time=0.1,
+        end_sample=200,
+        end_time=0.2,
+        sample_rate=44100,
+        peak_sample=150,
+        peak_time=0.15,
+        predicted_labels=[DrumLabel.KICK_DRUM],
+        session_id=session.id,
+    )
+
+    test_db_service.save_clips(session.id, {'test-clip': clip})
+    # Get the clip ID after saving
+    saved_clips, _ = test_db_service.get_clips(session.id)
+    clip_id = saved_clips[0].id
+
+    # Test getting existing clip
+    retrieved_clip = test_db_service.get_clip(session.id, clip_id)
+
+    assert retrieved_clip is not None
+    assert retrieved_clip.id == clip_id
+    assert retrieved_clip.start_sample == 100
+    assert retrieved_clip.predicted_labels == [DrumLabel.KICK_DRUM]
+
+    # Test getting non-existent clip
+    non_existent_clip = test_db_service.get_clip(session.id, 'non-existent-id')
+    assert non_existent_clip is None
+
+    # Test getting clip from wrong session
+    other_session = test_db_service.create_session('other_audio.wav')
+    wrong_session_clip = test_db_service.get_clip(other_session.id, clip_id)
+    assert wrong_session_clip is None
+
+
+def test_delete_clip(test_db_service, tmp_path):
+    '''Test deleting a specific clip.'''
+    session = test_db_service.create_session('test_audio.wav')
+
+    audio_clip_path = tmp_path / 'clip.npy'
+    audio_clip_path.touch()
+    assert audio_clip_path.exists()
+
+    # Create and save a clip
+    clip = AudioClip(
+        start_sample=100,
+        start_time=0.1,
+        end_sample=200,
+        end_time=0.2,
+        sample_rate=44100,
+        peak_sample=150,
+        peak_time=0.15,
+        predicted_labels=[DrumLabel.KICK_DRUM],
+        session_id=session.id,
+        audio_file_path=str(audio_clip_path),
+    )
+
+    test_db_service.save_clips(session.id, {'test-clip': clip})
+
+    # Get the saved clip ID
+    saved_clips, _ = test_db_service.get_clips(session.id)
+    clip_id = saved_clips[0].id
+
+    # Verify clip exists
+    clips, total = test_db_service.get_clips(session.id)
+    assert total == 1
+
+    # Delete the clip
+    result = test_db_service.delete_clip(session.id, clip_id)
+
+    assert result is True
+
+    # Verify clip was deleted from database
+    clips, total = test_db_service.get_clips(session.id)
+    assert total == 0
+
+    # Verify clip file was deleted
+    assert not audio_clip_path.exists()
+
+    # Test deleting non-existent clip
+    result = test_db_service.delete_clip(session.id, 'non-existent-id')
+    assert result is False
+
+
+def test_get_clips_pagination(test_db_service):
+    '''Test get_clips with pagination.'''
+    session = test_db_service.create_session('test_audio.wav')
+
+    # Create multiple clips
+    clips = {}
+    for i in range(25):  # More than default page size
+        clip = AudioClip(
+            start_sample=100 * i,
+            start_time=0.1 * i,
+            end_sample=100 * i + 100,
+            end_time=0.1 * i + 0.1,
+            sample_rate=44100,
+            peak_sample=100 * i + 50,
+            peak_time=0.1 * i + 0.05,
+            predicted_labels=[DrumLabel.KICK_DRUM],
+            session_id=session.id,
+        )
+        clips[clip.id] = clip
+
+    test_db_service.save_clips(session.id, clips)
+
+    # Test default pagination (page 1, 20 items)
+    page1_clips, total = test_db_service.get_clips(session.id)
+    assert total == 25
+    assert len(page1_clips) == 20
+
+    # Test second page
+    page2_clips, total = test_db_service.get_clips(session.id, page=2, page_size=20)
+    assert total == 25
+    assert len(page2_clips) == 5
+
+    # Test custom page size
+    custom_clips, total = test_db_service.get_clips(session.id, page=1, page_size=10)
+    assert total == 25
+    assert len(custom_clips) == 10
+
+
+def test_edge_cases(test_db_service):
+    '''Test edge cases and error conditions.'''
+    session = test_db_service.create_session('test_audio.wav')
+
+    # Test update_session with non-existent session
+    result = test_db_service.update_session('non-existent-id', {'bpm': 120})
+    assert result is None
+
+    # Test get_clips with non-existent session (should return empty)
+    clips, total = test_db_service.get_clips('non-existent-session')
+    assert clips == []
+    assert total == 0
+
+    # Test save_clips with empty dictionary
+    count = test_db_service.save_clips(session.id, {})
+    assert count == 0
+
+    # Test get_labeled_clips with session that has no clips
+    labeled_clips = test_db_service.get_labeled_clips(session.id)
+    assert labeled_clips == []
