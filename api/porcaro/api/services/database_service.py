@@ -224,6 +224,20 @@ class DatabaseSessionService:
                 raise
         return len(df)
 
+    def save_clips(self, session_id: str, clips: dict[str, AudioClip]) -> int:
+        '''Save clips to database from a dictionary.'''
+        with next(get_session()) as db_session:
+            try:
+                for clip in clips.values():
+                    # Set the session_id if not already set
+                    clip.session_id = session_id
+                    db_session.add(clip)
+                db_session.commit()
+            except Exception:
+                logger.exception(f'Error saving clips for session {session_id}')
+                raise
+        return len(clips)
+
     def get_clips(
         self, session_id: str, page: int = 1, page_size: int = 20
     ) -> tuple[Sequence[AudioClip], int]:

@@ -16,9 +16,8 @@ dependencies = [
     "soundfile>=0.13.1",
     "torch>2.2",
     "uvicorn[standard]>=0.31.1",
-    "sqlmodel>=0.0.22",
-    "psycopg2-binary>=2.9.9",
-    "alembic>=1.13.3",
+    "psycopg[binary,pool]>=3.2.10",
+    "sqlmodel>=0.0.25",
 ]
 
 [project.scripts]
@@ -41,4 +40,62 @@ dev = [
     "pytest>=8.3.4",
     "pytest-asyncio>=0.24.0",
     "httpx>=0.28.1",
+    "pytest-postgresql>=7.0.2",
+]
+
+[tool.ruff]
+line-length = 88
+
+[tool.ruff.format]
+quote-style = "preserve"
+
+[tool.ruff.lint]
+isort.force-single-line = true
+isort.length-sort = true
+flake8-annotations = { mypy-init-return = true }
+flake8-quotes = { inline-quotes = "single" }
+select = ["ALL"]
+ignore = [
+    "ANN401",
+    "ARG002",
+    "COM812",
+    "D100",
+    "D101",
+    "D104",
+    "D300",    # allow single quotes
+    "D400",
+    "D401",
+    "D404",
+    "D413",
+    "D415",
+    "EM101",
+    "EM102",
+    "FA102",
+    "FBT001",
+    "FBT002",
+    "G004",
+    "PLR0913",
+    "PYI041",
+    "Q002",    # allow single quotes
+    "RET504",
+    "S311",
+    "S607",
+    "S603",
+    "SIM105",
+    "TRY300",
+    "TRY003",
+]
+per-file-ignores."tests/**/*.py" = [
+    "ANN001",
+    "ANN201",
+    "ANN202",
+    "ANN204",
+    "INP001",
+    "D102",
+    "D103",
+    "D105",
+    "D107",
+    "S101",
+    "PGH003",
+    "PLR2004",
 ]

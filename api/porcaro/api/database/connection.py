@@ -10,7 +10,7 @@ from sqlmodel import create_engine
 
 # Database URL from environment variable or default for development
 DATABASE_URL = os.getenv(
-    'DATABASE_URL', 'postgresql://postgres:postgres@localhost:5432/porcaro'
+    'DATABASE_URL', 'postgresql+psycopg://postgres:postgres@localhost:5432/porcaro'
 )
 
 # Create engine

@@ -74,7 +74,7 @@ class ProcessingMetadata(ProcessingMetadataModel, table=True):
 
     id: str = Field(
         primary_key=True,
-        foreign_key='labeling_session.id',
+        foreign_key='labelingsession.id',
         unique=True,
         description='Session this metadata belongs to',
     )
@@ -108,7 +108,7 @@ class LabelingSession(SQLModel, table=True):
     # Foreign keys
     time_signature_id: str | None = Field(
         default=None,
-        foreign_key='time_signature.id',
+        foreign_key='timesignature.id',
         description='Time signature ID',
     )
 
@@ -169,7 +169,7 @@ class AudioClip(SQLModel, table=True):
 
     # Foreign keys
     session_id: str = Field(
-        foreign_key='labeling_session.id', description='Session this clip belongs to'
+        foreign_key='labelingsession.id', description='Session this clip belongs to'
     )
 
     # Relationships
