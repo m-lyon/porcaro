@@ -96,6 +96,7 @@ async def export_labeled_data(
         )
 
     # Get labeled clips from database
+    total_clips = database_session_service.count_total_clips(session_id)
     labeled_clips = database_session_service.get_labeled_clips(session_id)
 
     if not labeled_clips:
@@ -121,7 +122,7 @@ async def export_labeled_data(
                     'denominator': session.time_signature.denominator,
                 },
                 'bpm': session.bpm,
-                'total_clips': session.total_clips,
+                'total_clips': total_clips,
                 'labeled_clips': len(labeled_clips),
                 'created_at': session.created_at.isoformat(),
             },
@@ -135,12 +136,8 @@ async def export_labeled_data(
                     'sample_rate': clip.sample_rate,
                     'peak_sample': clip.peak_sample,
                     'peak_time': clip.peak_time,
-                    'predicted_labels': [
-                        label.value for label in clip.predicted_labels
-                    ],
-                    'user_label': [label.value for label in clip.user_label]
-                    if clip.user_label
-                    else None,
+                    'predicted_labels': clip.predicted_labels,
+                    'user_label': clip.user_label if clip.user_label else None,
                     'labeled_at': clip.labeled_at.isoformat()
                     if clip.labeled_at
                     else None,
@@ -149,31 +146,10 @@ async def export_labeled_data(
             ],
         }
 
-    elif fmt.lower() == 'csv':
-        # Export as CSV-compatible structure
-        export_data = [
-            {
-                'clip_id': clip.id,
-                'start_sample': clip.start_sample,
-                'start_time': clip.start_time,
-                'end_sample': clip.end_sample,
-                'end_time': clip.end_time,
-                'peak_time': clip.peak_time,
-                'predicted_labels': ','.join(
-                    [label.value for label in clip.predicted_labels]
-                ),
-                'user_label': ','.join([label.value for label in clip.user_label])
-                if clip.user_label
-                else '',
-                'labeled_at': clip.labeled_at.isoformat() if clip.labeled_at else None,
-            }
-            for clip in labeled_clips
-        ]
-
     else:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail='Unsupported export format. Use "json" or "csv"',
+            detail='Unsupported export format. Use "json" only.',
         )
 
     return ExportLabeledDataResponse(
@@ -198,7 +174,7 @@ async def get_labeled_data_statistics() -> LabeledDataStatistics:
         for clip in all_clips:
             if clip.user_label:
                 for label in clip.user_label:
-                    clips_by_label[label.value] = clips_by_label.get(label.value, 0) + 1
+                    clips_by_label[label] = clips_by_label.get(label, 0) + 1
 
         return LabeledDataStatistics(
             total_labeled_clips=total_labeled_clips, clips_by_label=clips_by_label

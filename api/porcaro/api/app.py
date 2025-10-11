@@ -16,7 +16,7 @@ def main() -> None:
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     )
     uvicorn.run(
-        'porcaro.api.server:app',
+        'porcaro.api.main:app',
         host='localhost',
         port=8000,
         reload=True,

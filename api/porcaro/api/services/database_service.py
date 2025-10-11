@@ -11,6 +11,7 @@ from collections.abc import Sequence
 import numpy as np
 import pandas as pd
 from sqlmodel import Session
+from sqlmodel import col
 from sqlmodel import select
 
 from porcaro.api.utils import get_clip_filepath
@@ -36,14 +37,12 @@ class DatabaseSessionService:
     def __init__(self) -> None:
         '''Initialize the service.'''
 
+    # --- Session Management ---
     def create_session(self, filename: str) -> LabelingSession:
         '''Create a new labeling session.'''
         # Create database session
         with next(get_session()) as db_session:
-            labeling_session = LabelingSession(
-                filename=filename,
-                created_at=datetime.now(UTC),
-            )
+            labeling_session = LabelingSession(filename=filename)
             db_session.add(labeling_session)
             db_session.commit()
             db_session.refresh(labeling_session)
@@ -175,6 +174,7 @@ class DatabaseSessionService:
         logger.info(f'Deleted session {session_id}')
         return True
 
+    # --- Clip Management ---
     def save_clips_from_dataframe(self, session_id: str, df: pd.DataFrame) -> int:
         '''Save clips to database.'''
         created_files = []
@@ -224,11 +224,11 @@ class DatabaseSessionService:
                 raise
         return len(df)
 
-    def save_clips(self, session_id: str, clips: dict[str, AudioClip]) -> int:
+    def save_clips(self, session_id: str, clips: list[AudioClip]) -> int:
         '''Save clips to database from a dictionary.'''
         with next(get_session()) as db_session:
             try:
-                for clip in clips.values():
+                for clip in clips:
                     # Set the session_id if not already set
                     clip.session_id = session_id
                     db_session.add(clip)
@@ -268,6 +268,57 @@ class DatabaseSessionService:
             )
             clip = db_session.exec(statement).first()
             return clip
+
+    def delete_clip(self, session_id: str, clip_id: str) -> bool:
+        '''Delete a specific clip and its associated audio file.'''
+        with next(get_session()) as db_session:
+            statement = select(AudioClip).where(
+                AudioClip.session_id == session_id,
+                AudioClip.id == clip_id,
+            )
+            clip = db_session.exec(statement).first()
+
+            if not clip:
+                return False
+
+            # Delete associated audio file if it exists
+            if clip.audio_file_path:
+                file_path = Path(clip.audio_file_path)
+                try:
+                    if file_path.exists():
+                        file_path.unlink()
+                        logger.debug(f'Deleted audio file: {file_path}')
+                except (FileNotFoundError, PermissionError, OSError) as e:
+                    logger.warning(f'Failed to delete audio file {file_path}: {e}')
+
+            # Delete clip from database
+            db_session.delete(clip)
+            db_session.commit()
+
+            logger.info(f'Deleted clip {clip_id} from session {session_id}')
+            return True
+
+    def count_total_clips(self, session_id: str) -> int:
+        '''Get the total number of clips for a session.'''
+        with next(get_session()) as db_session:
+            statement = select(AudioClip).where(AudioClip.session_id == session_id)
+            count = len(db_session.exec(statement).all())
+            return count or 0
+
+    # --- Label Management ---
+    def count_labeled_clips(self, session_id: str) -> int:
+        '''Get the number of clips that have a user-assigned label for a session.'''
+        with next(get_session()) as db_session:
+            statement = (
+                select(AudioClip)
+                .where(AudioClip.session_id == session_id)
+                .where(
+                    col(AudioClip.user_label) != None,
+                )
+            )
+
+            count = len(db_session.exec(statement).all())
+            return count or 0
 
     def update_clip_label(
         self, session_id: str, clip_id: str, labels: list[DrumLabel]
@@ -340,35 +391,6 @@ class DatabaseSessionService:
                 for clip in db_clips
                 if clip.user_label is not None and len(clip.user_label) > 0
             ]
-
-    def delete_clip(self, session_id: str, clip_id: str) -> bool:
-        '''Delete a specific clip and its associated audio file.'''
-        with next(get_session()) as db_session:
-            statement = select(AudioClip).where(
-                AudioClip.session_id == session_id,
-                AudioClip.id == clip_id,
-            )
-            clip = db_session.exec(statement).first()
-
-            if not clip:
-                return False
-
-            # Delete associated audio file if it exists
-            if clip.audio_file_path:
-                file_path = Path(clip.audio_file_path)
-                try:
-                    if file_path.exists():
-                        file_path.unlink()
-                        logger.debug(f'Deleted audio file: {file_path}')
-                except (FileNotFoundError, PermissionError, OSError) as e:
-                    logger.warning(f'Failed to delete audio file {file_path}: {e}')
-
-            # Delete clip from database
-            db_session.delete(clip)
-            db_session.commit()
-
-            logger.info(f'Deleted clip {clip_id} from session {session_id}')
-            return True
 
 
 # Create a global instance

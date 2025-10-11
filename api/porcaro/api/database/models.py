@@ -6,14 +6,14 @@ from typing import Any
 from datetime import UTC
 from datetime import datetime
 
-from pydantic import computed_field
 from sqlmodel import JSON
+from sqlmodel import ARRAY
+from sqlmodel import Enum as SqlEnum
 from sqlmodel import Field
 from sqlmodel import Column
 from sqlmodel import SQLModel
 from sqlmodel import Relationship
 from sqlmodel import UniqueConstraint
-from sqlalchemy.ext.hybrid import hybrid_property
 
 
 class DrumLabel(str, Enum):
@@ -83,55 +83,6 @@ class ProcessingMetadata(ProcessingMetadataModel, table=True):
     session: 'LabelingSession' = Relationship(back_populates='processing_metadata')
 
 
-class LabelingSession(SQLModel, table=True):
-    '''Labeling session database model.'''
-
-    id: str = Field(
-        default_factory=lambda: str(uuid.uuid4()),
-        primary_key=True,
-        description='Unique session identifier',
-    )
-    filename: str = Field(description='Original audio filename')
-    start_beat: float = Field(default=1, description='Starting beat offset')
-    offset: float = Field(default=0.0, description='Offset in seconds')
-    duration: float | None = Field(
-        default=None, description='Duration to process in seconds'
-    )
-    resolution: int | None = Field(default=16, description='Window size resolution')
-    bpm: float | None = Field(default=None, description='Detected BPM')
-    total_clips: int = Field(default=0, description='Total number of clips')
-    created_at: datetime = Field(
-        default_factory=lambda: datetime.now(tz=UTC),
-        description='Session creation time',
-    )
-
-    # Foreign keys
-    time_signature_id: str | None = Field(
-        default=None,
-        foreign_key='timesignature.id',
-        description='Time signature ID',
-    )
-
-    # Relationships
-    time_signature: TimeSignature | None = Relationship()
-    clips: list['AudioClip'] = Relationship(
-        back_populates='session', cascade_delete=True
-    )
-    processing_metadata: ProcessingMetadata | None = Relationship(
-        back_populates='session', cascade_delete=True
-    )
-
-    @computed_field(
-        return_type=int, description='Number of clips that have a user-assigned label'
-    )
-    @hybrid_property
-    def labeled_clips(
-        self,
-    ) -> int:
-        '''Number of clips that have a user-assigned label.'''
-        return sum(1 for clip in self.clips if clip.user_label is not None)
-
-
 class AudioClip(SQLModel, table=True):
     '''Audio clip database model.'''
 
@@ -148,23 +99,25 @@ class AudioClip(SQLModel, table=True):
     peak_sample: int = Field(description='Sample where the peak occurs')
     peak_time: float = Field(description='Time in seconds where the peak occurs')
     predicted_labels: list[DrumLabel] = Field(
-        sa_column=Column(JSON), description='ML model predictions'
+        sa_column=Column(ARRAY(SqlEnum(DrumLabel))),
+        description='ML model predictions',
     )
     user_label: list[DrumLabel] | None = Field(
-        sa_column=Column(JSON),
+        sa_column=Column(ARRAY(SqlEnum(DrumLabel))),
         default=None,
         description='User-assigned label',
     )
     confidence_scores: dict | None = Field(
         sa_column=Column(JSON),
-        default=None,
+        default=None,  # saved as 'null' in the DB if not set
         description='Model confidence scores',
     )
     labeled_at: datetime | None = Field(
         default=None, description='When the clip was labeled'
     )
     audio_file_path: str | None = Field(
-        default=None, description='Path to the stored audio file'
+        default_factory=lambda: datetime.now(tz=UTC),
+        description='Path to the stored audio file',
     )
 
     # Foreign keys
@@ -173,4 +126,46 @@ class AudioClip(SQLModel, table=True):
     )
 
     # Relationships
-    session: LabelingSession = Relationship(back_populates='clips')
+    session: 'LabelingSession' = Relationship(back_populates='clips')
+
+
+class LabelingSession(SQLModel, table=True):
+    '''Labeling session database model.'''
+
+    id: str = Field(
+        default_factory=lambda: str(uuid.uuid4()),
+        primary_key=True,
+        description='Unique session identifier',
+    )
+    filename: str = Field(description='Original audio filename')
+    start_beat: float = Field(default=1, description='Starting beat offset')
+    offset: float = Field(default=0.0, description='Offset in seconds')
+    duration: float | None = Field(
+        default=None, description='Duration to process in seconds'
+    )
+    resolution: int | None = Field(default=16, description='Window size resolution')
+    bpm: float | None = Field(default=None, description='Detected BPM')
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(tz=UTC),
+        description='Session creation time',
+    )
+
+    # Foreign keys
+    time_signature_id: str | None = Field(
+        default=None,
+        foreign_key='timesignature.id',
+        description='Time signature ID',
+    )
+
+    # Relationships
+    time_signature: TimeSignature | None = Relationship(
+        sa_relationship_kwargs={'lazy': 'selectin'}
+    )
+    clips: list['AudioClip'] = Relationship(
+        back_populates='session', cascade_delete=True
+    )
+    processing_metadata: ProcessingMetadata | None = Relationship(
+        back_populates='session',
+        cascade_delete=True,
+        sa_relationship_kwargs={'lazy': 'selectin'},
+    )

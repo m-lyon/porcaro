@@ -96,6 +96,7 @@ async def process_session_audio(
 
     file_path = get_filepath_from_session(session)
     if not file_path.exists():
+        logger.error(f'Audio file not found for session {session_id}')
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail='No audio file found for session',
@@ -105,7 +106,7 @@ async def process_session_audio(
         logger.info(f'Processing audio for session {session_id}')
 
         # Process audio through porcaro pipeline
-        track, df, bpm, total_clips, metadata = process_audio_file(
+        track, df, bpm, metadata = process_audio_file(
             file_path=file_path,
             time_sig=request.time_signature,
             start_beat=request.start_beat,
@@ -129,7 +130,6 @@ async def process_session_audio(
                 'offset': request.offset,
                 'resolution': request.resolution,
                 'bpm': bpm,
-                'total_clips': total_clips,
                 'processing_metadata': metadata,
             },
         )
@@ -137,7 +137,7 @@ async def process_session_audio(
         logger.info(f'Processing complete for session {session_id}: {num_clips} clips')
 
         return ProcessAudioSessionResponse(
-            total_clips=total_clips, bpm=bpm, duration=metadata.duration
+            total_clips=num_clips, bpm=bpm, duration=metadata.duration
         )
 
     except Exception as e:
@@ -157,8 +157,8 @@ async def get_session_progress(session_id: str) -> SessionProgress:
             status_code=status.HTTP_404_NOT_FOUND, detail='Session not found'
         )
 
-    total_clips = session.total_clips
-    labeled_clips = session.labeled_clips
+    total_clips = database_session_service.count_total_clips(session_id)
+    labeled_clips = database_session_service.count_labeled_clips(session_id)
     progress_percentage = (labeled_clips / total_clips * 100) if total_clips > 0 else 0
 
     return SessionProgress(

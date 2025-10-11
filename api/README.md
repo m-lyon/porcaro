@@ -193,7 +193,7 @@ import numpy as np
 from pathlib import Path
 
 def load_training_data(labeled_data_dir):
-    """Load all labeled clips for training."""
+    '''Load all labeled clips for training.'''
     training_data = []
     
     for session_dir in Path(labeled_data_dir).iterdir():

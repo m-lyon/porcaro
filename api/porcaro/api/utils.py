@@ -1,16 +1,16 @@
+import os
 from pathlib import Path
 
 from porcaro.api.database.models import AudioClip
 from porcaro.api.database.models import LabelingSession
 
-SESSIONS_DATA_DIR = Path('data/sessions')
-
 
 def get_session_directory(session: LabelingSession | str) -> Path:
     '''Get the directory path for a session's data.'''
+    session_dir = Path(os.environ['PORCARO_SESSION_DIR'] or 'data/sessions')
     if isinstance(session, str):
-        return SESSIONS_DATA_DIR.joinpath(session)
-    return SESSIONS_DATA_DIR.joinpath(session.id)
+        return session_dir.joinpath(session)
+    return session_dir.joinpath(session.id)
 
 
 def get_filepath_from_session(session: LabelingSession) -> Path:

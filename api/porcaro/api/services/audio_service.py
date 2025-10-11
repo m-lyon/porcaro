@@ -34,7 +34,7 @@ def process_audio_file(
     offset: float = 0.0,
     duration: float | None = None,
     resolution: int = 16,
-) -> tuple[np.ndarray, pd.DataFrame, float, int, ProcessingMetadataModel]:
+) -> tuple[np.ndarray, pd.DataFrame, float, ProcessingMetadataModel]:
     '''Process audio file through the porcaro transcription pipeline.
 
     Returns:
@@ -62,7 +62,6 @@ def process_audio_file(
 
     # Prepare metadata
     bpm = song_data.bpm.bpm
-    total_clips = len(pred_df)
     duration = song_data.duration
 
     metadata = ProcessingMetadataModel(
@@ -75,7 +74,7 @@ def process_audio_file(
     )
 
     logger.info(f'Processed {len(pred_df)} clips with BPM {song_data.bpm}')
-    return track, pred_df, bpm, total_clips, metadata
+    return track, pred_df, bpm, metadata
 
 
 def audio_clip_to_wav_bytes(audio_data: np.ndarray, sample_rate: int | float) -> bytes:
