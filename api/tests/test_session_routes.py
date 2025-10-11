@@ -9,8 +9,9 @@ from porcaro.api.database.models import ProcessingMetadataModel
 
 def test_create_session_endpoint(client_single_session):
     '''Test the create session API endpoint.'''
+    client, _ = client_single_session
     files = {'file': ('test.wav', b'fake audio data', 'audio/wav')}
-    response = client_single_session.post('/api/sessions/', files=files)
+    response = client.post('/api/sessions/', files=files)
     data = response.json()
     assert response.status_code == 200
     assert 'id' in data
@@ -19,7 +20,8 @@ def test_create_session_endpoint(client_single_session):
 
 def test_get_session_endpoint(client_single_session, sample_session):
     '''Test the get session API endpoint.'''
-    response = client_single_session.get(f'/api/sessions/{sample_session.id}')
+    client, _ = client_single_session
+    response = client.get(f'/api/sessions/{sample_session.id}')
 
     assert response.status_code == 200
     data = response.json()
@@ -29,13 +31,16 @@ def test_get_session_endpoint(client_single_session, sample_session):
 
 def test_get_nonexistent_session_endpoint(client_single_session):
     '''Test getting a session that doesn't exist.'''
-    response = client_single_session.get('/api/sessions/nonexistent-id')
+    client, _ = client_single_session
+    response = client.get('/api/sessions/nonexistent-id')
 
     assert response.status_code == 404
 
 
 def test_process_session_audio_endpoint(client_single_session, sample_session, mocker):
     '''Test the process session audio API endpoint (tests update_session).'''
+    client, (upload_path, _) = client_single_session
+    upload_path.touch()
     mock_track = np.array([1, 2, 3])  # Simple array with nbytes
     mock_df = pd.DataFrame()
     mock_metadata = ProcessingMetadataModel(
@@ -58,7 +63,7 @@ def test_process_session_audio_endpoint(client_single_session, sample_session, m
         ),
     )
 
-    response = client_single_session.post(
+    response = client.post(
         f'/api/sessions/{sample_session.id}/process',
         json={
             'time_signature': {'numerator': 4, 'denominator': 4},
@@ -77,9 +82,8 @@ def test_process_session_audio_endpoint(client_single_session, sample_session, m
 
 def test_get_session_progress_endpoint(client_single_session, sample_session_expanded):
     '''Test the get session progress API endpoint.'''
-    response = client_single_session.get(
-        f'/api/sessions/{sample_session_expanded.id}/progress'
-    )
+    client, _ = client_single_session
+    response = client.get(f'/api/sessions/{sample_session_expanded.id}/progress')
     assert response.status_code == 200
     data = response.json()
     assert data['total_clips'] == 2
@@ -90,8 +94,9 @@ def test_get_session_progress_endpoint(client_single_session, sample_session_exp
 
 def test_delete_session_endpoint(client_single_session, sample_session):
     '''Test the delete session API endpoint.'''
+    client, _ = client_single_session
     # Delete the session
-    response = client_single_session.delete(f'/api/sessions/{sample_session.id}')
+    response = client.delete(f'/api/sessions/{sample_session.id}')
 
     assert response.status_code == 200
     response_data = response.json()
@@ -99,5 +104,5 @@ def test_delete_session_endpoint(client_single_session, sample_session):
     assert response_data['session_id'] == sample_session.id
 
     # Verify it's gone
-    get_response = client_single_session.get(f'/api/sessions/{sample_session.id}')
+    get_response = client.get(f'/api/sessions/{sample_session.id}')
     assert get_response.status_code == 404

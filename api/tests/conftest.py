@@ -95,18 +95,18 @@ def client_single_session(client, mocker, tmp_path):
         'porcaro.api.services.database_service.get_session_directory',
         return_value=tmp_path,
     )
+    track_path = tmp_path / 'track.npy'
     mocker.patch(
-        'porcaro.api.services.memory_service.get_session_directory',
-        return_value=tmp_path,
+        'porcaro.api.services.memory_service.get_track_filepath',
+        return_value=track_path,
     )
-    mock_fpath = tmp_path / 'test.wav'
-    mock_fpath.touch()
+    upload_path = tmp_path / 'test.wav'
     mocker.patch(
-        'porcaro.api.routers.sessions.get_filepath_from_session',
-        return_value=mock_fpath,
+        'porcaro.api.routers.sessions.get_upload_filepath',
+        return_value=upload_path,
     )
 
-    return client
+    return client, (upload_path, track_path)
 
 
 @pytest.fixture

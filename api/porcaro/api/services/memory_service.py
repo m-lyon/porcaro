@@ -2,7 +2,7 @@ import logging
 
 import numpy as np
 
-from porcaro.api.utils import get_session_directory
+from porcaro.api.utils import get_track_filepath
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +18,7 @@ class InMemoryService:
 
     def set_session_track(self, session_id: str, track: np.ndarray) -> None:
         '''Set in-memory data for a specific session.'''
-        file_path = get_session_directory(session_id).joinpath('track.npy')
+        file_path = get_track_filepath(session_id)
         if not file_path.exists():
             np.save(file_path, track)
             logger.info(f'Saved processed track to {file_path}')
@@ -50,7 +50,7 @@ class InMemoryService:
     def get_session_track(self, session_id: str) -> np.ndarray:
         '''Get in-memory track data for a specific session.'''
         if session_id not in self._in_mem_session_tracks:
-            file_path = get_session_directory(session_id).joinpath('track.npy')
+            file_path = get_track_filepath(session_id)
             if file_path.exists():
                 self._in_mem_session_tracks[session_id] = np.load(file_path)
                 logger.info(f'Loaded processed track from {file_path}')

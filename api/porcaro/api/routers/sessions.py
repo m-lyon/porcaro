@@ -9,7 +9,7 @@ from fastapi import UploadFile
 from fastapi import HTTPException
 from fastapi import status
 
-from porcaro.api.utils import get_filepath_from_session
+from porcaro.api.utils import get_upload_filepath
 from porcaro.api.models import SessionProgress
 from porcaro.api.models import ProcessAudioRequest
 from porcaro.api.models import DeleteSessionResponse
@@ -53,7 +53,7 @@ async def create_session(file: UploadFile) -> LabelingSession:
 
     # Save uploaded file to disk
     try:
-        file_path = get_filepath_from_session(session)
+        file_path = get_upload_filepath(session)
 
         # Write uploaded file
         async with await anyio.open_file(file_path, 'wb') as buffer:
@@ -94,7 +94,7 @@ async def process_session_audio(
             status_code=status.HTTP_404_NOT_FOUND, detail='Session not found'
         )
 
-    file_path = get_filepath_from_session(session)
+    file_path = get_upload_filepath(session)
     if not file_path.exists():
         logger.error(f'Audio file not found for session {session_id}')
         raise HTTPException(

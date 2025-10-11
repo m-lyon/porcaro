@@ -7,10 +7,11 @@ from porcaro.api.database.models import DrumLabel
 def test_label_clip_endpoint(client_single_session, sample_session_expanded):
     '''Test the label clip API endpoint.'''
     clip_id = sample_session_expanded.clips[0].id
+    client, _ = client_single_session
 
     # Label the clip
     label_data = {'labels': [DrumLabel.SNARE_DRUM.value]}
-    response = client_single_session.post(
+    response = client.post(
         f'/api/labels/{sample_session_expanded.id}/clips/{clip_id}/label',
         json=label_data,
     )
@@ -23,9 +24,10 @@ def test_label_clip_endpoint(client_single_session, sample_session_expanded):
 
 def test_label_nonexistent_clip(client_single_session, sample_session_expanded):
     '''Test labeling a clip that doesn't exist.'''
+    client, _ = client_single_session
     label_data = {'labels': [DrumLabel.KICK_DRUM.value]}
 
-    response = client_single_session.post(
+    response = client.post(
         f'/api/labels/{sample_session_expanded.id}/clips/nonexistent-clip-id/label',
         json=label_data,
     )
@@ -35,10 +37,11 @@ def test_label_nonexistent_clip(client_single_session, sample_session_expanded):
 
 def test_remove_clip_label_endpoint(client_single_session, sample_session_expanded):
     '''Test the remove clip label API endpoint.'''
+    client, _ = client_single_session
     clip_id = sample_session_expanded.clips[0].id
 
     # Remove the label
-    response = client_single_session.delete(
+    response = client.delete(
         f'/api/labels/{sample_session_expanded.id}/clips/{clip_id}/label'
     )
 
@@ -50,7 +53,8 @@ def test_remove_clip_label_endpoint(client_single_session, sample_session_expand
 
 def test_remove_label_nonexistent_clip(client_single_session, sample_session_expanded):
     '''Test removing label from a clip that doesn't exist.'''
-    response = client_single_session.delete(
+    client, _ = client_single_session
+    response = client.delete(
         f'/api/labels/{sample_session_expanded.id}/clips/nonexistent-clip-id/label'
     )
 
@@ -61,9 +65,8 @@ def test_export_labeled_data_json_endpoint(
     client_single_session, sample_session_expanded
 ):
     '''Test the export labeled data API endpoint in json format.'''
-    response = client_single_session.get(
-        f'/api/labels/{sample_session_expanded.id}/export?fmt=json'
-    )
+    client, _ = client_single_session
+    response = client.get(f'/api/labels/{sample_session_expanded.id}/export?fmt=json')
 
     assert response.status_code == 200
     # Response should be a structured JSON response with CSV data

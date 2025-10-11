@@ -13,9 +13,14 @@ def get_session_directory(session: LabelingSession | str) -> Path:
     return session_dir.joinpath(session.id)
 
 
-def get_filepath_from_session(session: LabelingSession) -> Path:
+def get_upload_filepath(session: LabelingSession) -> Path:
     '''Get the file path of the uploaded audio file for a session.'''
     return get_session_directory(session).joinpath(session.filename)
+
+
+def get_track_filepath(session: LabelingSession | str) -> Path:
+    '''Get the file path of the processed track for a session.'''
+    return get_session_directory(session).joinpath('track.npy')
 
 
 def get_clip_filepath(clip: AudioClip) -> Path:

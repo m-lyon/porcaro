@@ -316,7 +316,7 @@ class DatabaseSessionService:
                     col(AudioClip.user_label) != None,
                 )
             )
-
+            # TODO: write a test to confirm != None is needed.
             count = len(db_session.exec(statement).all())
             return count or 0
 
