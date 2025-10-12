@@ -7,7 +7,7 @@ from porcaro.api.database.models import LabelingSession
 
 def get_session_directory(session: LabelingSession | str) -> Path:
     '''Get the directory path for a session's data.'''
-    session_dir = Path(os.environ['PORCARO_SESSION_DIR'] or 'data/sessions')
+    session_dir = Path(os.getenv('PORCARO_SESSION_DIR', 'data/sessions'))
     if isinstance(session, str):
         return session_dir.joinpath(session)
     return session_dir.joinpath(session.id)
