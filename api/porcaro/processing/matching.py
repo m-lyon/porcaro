@@ -60,9 +60,10 @@ def match_by_eighth_notes(
     '''
     # NOTE: if the grid is previously synced to the onsets, then the tolerance
     # should be 0, as this tolerance is already accounted for in the grid.
-    assert {'peak_time', 'hits'}.issubset(note_predictions.columns), (
-        'note_predictions must contain "peak_time" and "hits" columns.'
-    )
+    if not {'peak_time', 'hits'}.issubset(note_predictions.columns):
+        raise ValueError(
+            'note_predictions must contain "peak_time" and "hits" columns.'
+        )
     matched_durations: list[duration.Duration] = []
     matched_notes: list[str | list[str]] = []
     for i in range(0, len(grid) - 1, 2):

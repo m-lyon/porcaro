@@ -11,6 +11,7 @@ LABEL_PITCH_MAP = {
     'KD': partial(music21.note.Note, 'F4'),
     'SD': partial(music21.note.Note, 'C5'),
     'SDX': partial(music21.note.Note, 'C5'),
+    'SDG': partial(music21.note.Note, 'C5'),
     'HHC': partial(music21.note.Note, 'G5'),
     'HHO': partial(music21.note.Note, 'G5'),
     'RC': partial(music21.note.Note, 'G5'),
@@ -43,13 +44,16 @@ def get_note_from_label(
     '''
     note: music21.note.Note | music21.percussion.PercussionChord
     if isinstance(label, list):
+        # multiple hits in one note
         notes = [get_note_from_label(lbl, duration) for lbl in label]
         note = music21.percussion.PercussionChord(notes)
-        note.duration = duration
     else:
         note = LABEL_PITCH_MAP[label]()
         if label in NOTEHEAD_MAP:
             note.notehead = NOTEHEAD_MAP[label]
+        # Add parenthesis for ghost notes
+        if label == 'SDG':
+            note.noteheadParenthesis = True
     note.duration = duration
     note.stemDirection = 'up'
     return note

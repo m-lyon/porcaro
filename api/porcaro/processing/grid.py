@@ -31,10 +31,11 @@ def get_eighth_note_time_grid(
     )
     measure_start_offset = (eighth_note_start_beat - 1) * song_data.bpm.eighth_note
     measure_start = drum_start_time - measure_start_offset
-    assert measure_start >= 0, (
-        'Measure start cannot be negative. '
-        'Check the start_beat and start_onset parameters.'
-    )
+    if measure_start < 0:
+        raise ValueError(
+            'Measure start cannot be negative. '
+            'Check the start_beat and start_onset parameters.'
+        )
     return np.arange(measure_start, song_data.duration, song_data.bpm.eighth_note)
 
 
