@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 def extract_drums_demucs(
     fpath: str | Path,
-    device: str = "cpu",
+    device: str = 'cpu',
     progress_bar: bool = True,
     drum_start: int | None = None,
     drum_end: int | None = None,
@@ -45,8 +45,14 @@ def extract_drums_demucs(
     model = apply.BagOfModels(sub_models)
     # assert that drum_start and drum_end are either both None or both not None
     if (drum_start is None) != (drum_end is None):
-        raise ValueError("drum_start and drum_end must be either both None or both not None")
-    duration = drum_end - drum_start if drum_end is not None and drum_start is not None else None
+        raise ValueError(
+            'drum_start and drum_end must be either both None or both not None'
+        )
+    duration = (
+        drum_end - drum_start
+        if drum_end is not None and drum_start is not None
+        else None
+    )
     wav = audio.AudioFile(Path(fpath)).read(
         streams=0,  # type: ignore
         samplerate=model.samplerate,
@@ -65,9 +71,10 @@ def extract_drums_demucs(
         split=True,
         overlap=0.25,
         progress=progress_bar,
-        num_workers=multiprocessing.cpu_count() if device == "cpu" else 0,
+        num_workers=multiprocessing.cpu_count() if device == 'cpu' else 0,
     )
-    assert isinstance(sources, torch.Tensor)
+    if not isinstance(sources, torch.Tensor):
+        raise TypeError('Expected sources to be a torch.Tensor')
 
     sources = sources[0] * ref.std() + ref.mean()
     drum = sources[0]

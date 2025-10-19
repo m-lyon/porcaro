@@ -312,11 +312,8 @@ class DatabaseSessionService:
             statement = (
                 select(AudioClip)
                 .where(AudioClip.session_id == session_id)
-                .where(
-                    col(AudioClip.user_label) != None,
-                )
+                .where(col(AudioClip.user_label) != None)  # noqa: E711
             )
-            # TODO: write a test to confirm != None is needed.
             count = len(db_session.exec(statement).all())
             return count or 0
 

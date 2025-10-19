@@ -69,6 +69,8 @@ ignore = [
     "D100",
     "D101",
     "D104",
+    "D203",
+    "D213",
     "D300",    # allow single quotes
     "D400",
     "D401",
@@ -82,6 +84,7 @@ ignore = [
     "FBT002",
     "FIX002",
     "G004",
+    "PGH003",
     "PLR0913",
     "PYI041",
     "Q002",    # allow single quotes
