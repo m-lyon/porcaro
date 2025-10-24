@@ -80,5 +80,5 @@ def process_audio_file(
 def audio_clip_to_wav_bytes(audio_data: np.ndarray, sample_rate: int | float) -> bytes:
     '''Convert numpy audio array to WAV bytes.'''
     buffer = io.BytesIO()
-    sf.write(buffer, audio_data, sample_rate, format='WAV')
+    sf.write(buffer, audio_data, int(sample_rate), format='WAV')
     return buffer.getvalue()

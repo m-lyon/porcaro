@@ -12,13 +12,13 @@ import { ArrowLeft, Check, X, Keyboard } from 'lucide-react';
 import { DrumLabelBadge } from '@porcaro/components/ClipBadges';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { ClipLoadingSkeleton } from '@porcaro/components/LoadingSkeletons';
-import { type LabelingSession, type SessionProgress } from '@porcaro/api/generated';
-import { type AudioClip, type DrumLabel as DrumLabelValue } from '@porcaro/api/generated';
 import { WaveformPlayer, type WaveformPlayerRef } from '@porcaro/components/WaveformPlayer';
 import { Card, CardContent, CardDescription, CardHeader } from '@porcaro/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@porcaro/components/ui/select';
+import { type AudioClipResponse, type DrumLabel as DrumLabelValue } from '@porcaro/api/generated';
 import { getClips, getSession, getSessionProgress, removeClipLabel } from '@porcaro/api/generated';
 import { useKeyboardShortcuts, formatKeyboardShortcut } from '@porcaro/hooks/useKeyboardShortcuts';
+import { type LabelingSessionResponse, type SessionProgressResponse } from '@porcaro/api/generated';
 
 interface DrumLabel {
     value: DrumLabelValue;
@@ -33,6 +33,7 @@ const DRUM_LABELS: DrumLabel[] = [
     { value: 'KD', label: 'Kick Drum', color: 'bg-red-500', key: '1' },
     { value: 'SD', label: 'Snare Drum', color: 'bg-blue-500', key: '2' },
     { value: 'SDX', label: 'Snare Drum (X-Stick)', color: 'bg-blue-500', key: 'W' },
+    { value: 'SDG', label: 'Snare Drum (Ghost)', color: 'bg-blue-500', key: 'S' },
     { value: 'HH', label: 'Hi-Hat', color: 'bg-green-500', key: '3' },
     { value: 'HHO', label: 'Hi-Hat Open', color: 'bg-green-500', key: 'E' },
     { value: 'HHC', label: 'Hi-Hat Closed', color: 'bg-green-500', key: 'D' },
@@ -54,15 +55,15 @@ export default function LabelingPage() {
         navigate('/');
     }
 
-    const [session, setSession] = useState<LabelingSession | null>(null);
-    const [clips, setClips] = useState<AudioClip[]>([]);
+    const [session, setSession] = useState<LabelingSessionResponse | null>(null);
+    const [clips, setClips] = useState<AudioClipResponse[]>([]);
     const [currentClipIndex, setCurrentClipIndex] = useState<number>(0);
     const [isPlaying, setIsPlaying] = useState<boolean>(false);
     const [selectedLabels, setSelectedLabels] = useState<DrumLabelValue[]>([]);
     const [isLoading, setIsLoading] = useState<boolean>(true);
     const [isSaving, setIsSaving] = useState<boolean>(false);
     const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
-    const [progress, setProgress] = useState<SessionProgress | null>(null);
+    const [progress, setProgress] = useState<SessionProgressResponse | null>(null);
     const [showShortcuts, setShowShortcuts] = useState<boolean>(false);
     const [playbackWindow, setPlaybackWindow] = useState<number[]>([1.0]);
     const [debouncedPlaybackWindow] = useDebounce(playbackWindow[0], 500);
@@ -102,14 +103,14 @@ export default function LabelingPage() {
             if (selectedLabels.length === 0) {
                 // Remove label if no labels selected
                 await removeClipLabel({
-                    path: { session_id: sessionId, clip_id: currentClip.clip_id },
+                    path: { session_id: sessionId, clip_id: currentClip.id },
                 });
                 toast.success('Label removed');
             } else {
                 // Save labels
                 await labelClip({
                     body: { labels: selectedLabels },
-                    path: { session_id: sessionId, clip_id: currentClip.clip_id },
+                    path: { session_id: sessionId, clip_id: currentClip.id },
                 });
                 toast.success('Label saved');
             }
@@ -147,7 +148,7 @@ export default function LabelingPage() {
         setSelectedLabels([]);
     };
 
-    const loadClipLabels = (clip: AudioClip) => {
+    const loadClipLabels = (clip: AudioClipResponse) => {
         if (clip?.user_label) {
             setSelectedLabels([...clip.user_label]);
         } else {
@@ -401,7 +402,7 @@ export default function LabelingPage() {
                                 sessionId && currentClip
                                     ? getClipAudioUrl(
                                           sessionId,
-                                          currentClip.clip_id,
+                                          currentClip.id,
                                           debouncedPlaybackWindow
                                       )
                                     : ''

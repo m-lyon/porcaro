@@ -1,17 +1,34 @@
 import { useNavigate } from 'react-router';
 import { Calendar, BarChart3 } from 'lucide-react';
 import { Button } from '@porcaro/components/ui/button';
+import { useCallback, useEffect, useState } from 'react';
 import { Progress } from '@porcaro/components/ui/progress';
-import type { LabelingSession } from '@porcaro/api/generated';
 import { Card, CardContent } from '@porcaro/components/ui/card';
+import { type SessionProgressResponse } from '@porcaro/api/generated';
+import { getSessionProgress, type LabelingSessionResponse } from '@porcaro/api/generated';
 
 interface Props {
-    session: LabelingSession;
+    session: LabelingSessionResponse;
 }
 export function ProgressCard(props: Props) {
     const { session } = props;
     const navigate = useNavigate();
-    const progress = ((session.labeled_clips ?? 0) / (session.total_clips ?? 1)) * 100;
+    const [progress, setProgress] = useState<SessionProgressResponse | null>(null);
+
+    const isProcessed = session.processing_metadata?.processed ?? false;
+
+    const loadProgress = useCallback(async () => {
+        const progressData = await getSessionProgress({ path: { session_id: session.id } });
+        if (progressData.data) {
+            setProgress(progressData.data);
+        }
+    }, [session.id]);
+
+    useEffect(() => {
+        if (isProcessed) {
+            loadProgress();
+        }
+    }, [loadProgress, isProcessed]);
 
     const formatDate = (dateString: string | undefined) => {
         if (!dateString) {
@@ -33,7 +50,7 @@ export function ProgressCard(props: Props) {
                     <div className='space-y-2 flex-1'>
                         <div className='flex items-center gap-2'>
                             <h3 className='font-semibold'>{session.filename}</h3>
-                            {session.processed ? (
+                            {session.processing_metadata?.processed ? (
                                 <span className='px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs'>
                                     Processed
                                 </span>
@@ -49,29 +66,29 @@ export function ProgressCard(props: Props) {
                                 {formatDate(session.created_at)}
                             </span>
                             {session.bpm && <span>{session.bpm.toFixed(1)} BPM</span>}
-                            {session.processed && (
+                            {isProcessed && progress && (
                                 <span className='flex items-center gap-1'>
                                     <BarChart3 className='h-3 w-3' />
-                                    {session.labeled_clips ?? 0}/{session.total_clips ?? 0} labeled
+                                    {progress.labeled_clips}/{progress.total_clips} labeled
                                 </span>
                             )}
                         </div>
-                        {session.processed && (session.total_clips ?? 0) > 0 && (
+                        {isProcessed && progress && (
                             <div className='space-y-1'>
                                 <div className='flex justify-between text-sm'>
                                     <span>Progress</span>
-                                    <span>{progress.toFixed(1)} %</span>
+                                    <span>{progress.progress_percentage.toFixed(1)} %</span>
                                 </div>
-                                <Progress value={progress} className='h-2' />
+                                <Progress value={progress.progress_percentage} className='h-2' />
                             </div>
                         )}
                     </div>
                     <div className='ml-4'>
                         <Button
-                            onClick={() => navigate(`/session/${session.session_id}`)}
-                            variant={session.processed ? 'default' : 'secondary'}
+                            onClick={() => navigate(`/session/${session.id}`)}
+                            variant={isProcessed ? 'default' : 'secondary'}
                         >
-                            {session.processed ? 'Continue Labeling' : 'Configure'}
+                            {isProcessed ? 'Continue Labeling' : 'Configure'}
                         </Button>
                     </div>
                 </div>

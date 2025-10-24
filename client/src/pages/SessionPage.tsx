@@ -7,8 +7,9 @@ import { CardTitle } from '@porcaro/components/ui/card';
 import { useState, useEffect, useCallback } from 'react';
 import { Progress } from '@porcaro/components/ui/progress';
 import { SelectValue } from '@porcaro/components/ui/select';
-import { deleteSession, type LabelingSession } from '@porcaro/api/generated';
+import { deleteSession, type SessionProgressResponse } from '@porcaro/api/generated';
 import { ArrowLeft, Settings, Play, BarChart3, Download, Trash2 } from 'lucide-react';
+import { getSessionProgress, type LabelingSessionResponse } from '@porcaro/api/generated';
 import { exportLabeledData, getSession, processSessionAudio } from '@porcaro/api/generated';
 import { Card, CardContent, CardDescription, CardHeader } from '@porcaro/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@porcaro/components/ui/select';
@@ -17,7 +18,8 @@ export default function SessionPage() {
     const { sessionId } = useParams();
     const navigate = useNavigate();
 
-    const [session, setSession] = useState<LabelingSession | null>(null);
+    const [session, setSession] = useState<LabelingSessionResponse | null>(null);
+    const [progress, setProgress] = useState<SessionProgressResponse | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -41,6 +43,13 @@ export default function SessionPage() {
             setIsLoading(false);
             return;
         }
+        const progressData = await getSessionProgress({ path: { session_id: sessionId } });
+        if (!progressData || !progressData.data) {
+            toast.error('Session progress not found');
+            navigate('/');
+            setIsLoading(false);
+            return;
+        }
         setSession(sessionData.data);
         if (sessionData.data.time_signature) {
             setTimeSignature(sessionData.data.time_signature);
@@ -56,6 +65,9 @@ export default function SessionPage() {
         }
         if (sessionData.data.resolution) {
             setResolution(sessionData.data.resolution);
+        }
+        if (progressData && progressData.data) {
+            setProgress(progressData.data);
         }
         setIsLoading(false);
     }, [sessionId, navigate]);
@@ -81,7 +93,7 @@ export default function SessionPage() {
 
             await processSessionAudio({
                 body: processRequest,
-                path: { session_id: session.session_id },
+                path: { session_id: session.id },
             });
             toast.success('Audio processing started successfully!');
 
@@ -157,7 +169,7 @@ export default function SessionPage() {
         );
     }
 
-    if (!session) {
+    if (!session || !progress) {
         return (
             <div className='text-center py-12'>
                 <p className='text-muted-foreground'>Session not found</p>
@@ -168,10 +180,7 @@ export default function SessionPage() {
         );
     }
 
-    const progressPercentage =
-        (session.total_clips ?? 0) > 0
-            ? ((session.labeled_clips ?? 0) / (session.total_clips ?? 1)) * 100
-            : 0;
+    const isProcessed = session.processing_metadata?.processed ?? false;
 
     return (
         <div className='space-y-6'>
@@ -309,12 +318,12 @@ export default function SessionPage() {
 
                         <Button
                             onClick={handleProcessAudio}
-                            disabled={isProcessing || session.processed}
+                            disabled={isProcessing || isProcessed}
                             className='w-full'
                         >
                             {isProcessing ? (
                                 <>Processing Audio...</>
-                            ) : session.processed ? (
+                            ) : isProcessed ? (
                                 <>Audio Already Processed</>
                             ) : (
                                 <>
@@ -340,7 +349,7 @@ export default function SessionPage() {
                                 <div>
                                     <span className='text-muted-foreground'>Status:</span>
                                     <div className='font-medium'>
-                                        {session.processed ? (
+                                        {isProcessed ? (
                                             <span className='text-green-600'>Processed</span>
                                         ) : (
                                             <span className='text-yellow-600'>
@@ -357,21 +366,24 @@ export default function SessionPage() {
                                 )}
                                 <div>
                                     <span className='text-muted-foreground'>Total Clips:</span>
-                                    <div className='font-medium'>{session.total_clips}</div>
+                                    <div className='font-medium'>{progress.total_clips}</div>
                                 </div>
                                 <div>
                                     <span className='text-muted-foreground'>Labeled:</span>
-                                    <div className='font-medium'>{session.labeled_clips}</div>
+                                    <div className='font-medium'>{progress.labeled_clips}</div>
                                 </div>
                             </div>
 
-                            {session.processed && (session.total_clips ?? 0) > 0 && (
+                            {isProcessed && progress.total_clips > 0 && (
                                 <div className='space-y-2'>
                                     <div className='flex justify-between text-sm'>
                                         <span>Labeling Progress</span>
-                                        <span>{progressPercentage.toFixed(1)}%</span>
+                                        <span>{progress.progress_percentage.toFixed(1)}%</span>
                                     </div>
-                                    <Progress value={progressPercentage} className='h-2' />
+                                    <Progress
+                                        value={progress.progress_percentage}
+                                        className='h-2'
+                                    />
                                 </div>
                             )}
                         </CardContent>
@@ -385,14 +397,14 @@ export default function SessionPage() {
                         <CardContent className='space-y-3'>
                             <Button
                                 onClick={handleStartLabeling}
-                                disabled={!session.processed}
+                                disabled={!isProcessed}
                                 className='w-full'
                                 size='lg'
                             >
-                                {session.processed ? 'Start Labeling' : 'Process Audio First'}
+                                {isProcessed ? 'Start Labeling' : 'Process Audio First'}
                             </Button>
 
-                            {(session.labeled_clips ?? 0) > 0 && (
+                            {progress.labeled_clips > 0 && (
                                 <Button
                                     onClick={handleExportData}
                                     variant='outline'

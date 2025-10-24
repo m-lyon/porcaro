@@ -30,6 +30,26 @@ def test_get_session(test_db_service):
     assert retrieved_session.filename == filename
 
 
+def test_get_sessions(test_db_service):
+    '''Test retrieving all sessions.'''
+    # Clear existing sessions
+    existing_sessions = test_db_service.get_sessions()
+    for session in existing_sessions:
+        test_db_service.delete_session(session.id)
+
+    # Create multiple sessions
+    filenames = ['audio1.wav', 'audio2.mp3', 'audio3.flac']
+    for fname in filenames:
+        test_db_service.create_session(fname)
+
+    # Retrieve all sessions
+    sessions = test_db_service.get_sessions()
+
+    assert len(sessions) == len(filenames)
+    retrieved_filenames = {session.filename for session in sessions}
+    assert set(filenames) == retrieved_filenames
+
+
 def test_get_nonexistent_session(test_db_service):
     '''Test retrieving a session that doesn't exist.'''
     session = test_db_service.get_session('nonexistent-id')

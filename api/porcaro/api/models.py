@@ -9,7 +9,32 @@ from pydantic import BaseModel
 
 from porcaro.api.database.models import AudioClip
 from porcaro.api.database.models import DrumLabel
+from porcaro.api.database.models import AudioClipList
+from porcaro.api.database.models import AudioClipModel
 from porcaro.api.database.models import TimeSignatureModel
+from porcaro.api.database.models import LabelingSessionModel
+from porcaro.api.database.models import ProcessingMetadataModel
+
+
+class TimeSignatureResponse(TimeSignatureModel):
+    '''Time signature response model.'''
+
+
+class ProcessingMetadataResponse(ProcessingMetadataModel):
+    '''Processing metadata response model.'''
+
+
+class LabelingSessionResponse(LabelingSessionModel):
+    '''Labeling session response model.'''
+
+    id: str = Field(..., description='Unique session identifier')
+
+    time_signature: TimeSignatureResponse | None = Field(
+        default=None, description='Time signature information'
+    )
+    processing_metadata: ProcessingMetadataResponse | None = Field(
+        default=None, description='Processing metadata information'
+    )
 
 
 class ProcessAudioRequest(BaseModel):
@@ -30,14 +55,16 @@ class LabelClipRequest(BaseModel):
     labels: list[DrumLabel] = Field(..., description='User-assigned labels')
 
 
-class ClipListResponse(BaseModel):
+class AudioClipResponse(AudioClipModel):
+    '''Audio clip response model.'''
+
+    id: str = Field(..., description='Unique clip identifier')
+
+
+class AudioClipListResponse(AudioClipList):
     '''Response model for listing clips.'''
 
-    clips: Sequence[AudioClip]
-    total: int = Field(..., description='Total number of clips')
-    page: int = Field(..., description='Current page')
-    page_size: int = Field(..., description='Page size')
-    has_next: bool = Field(..., description='Whether there are more pages')
+    clips: Sequence[AudioClipResponse] = Field(..., description='List of audio clips')
 
 
 class RemoveClipLabelResponse(BaseModel):
@@ -59,13 +86,19 @@ class LabeledDataStatistics(BaseModel):
     )
 
 
-class AllLabledClips(BaseModel):
+class LabeledClipsResponse(BaseModel):
     '''Response model for all labeled clips in a session.'''
 
     clips: list[AudioClip] = Field(..., description='List of labeled clips')
 
 
-class SessionProgress(BaseModel):
+class AllLabledClipsResponse(BaseModel):
+    '''Response model for all labeled clips in a session.'''
+
+    clips: list[AudioClipResponse] = Field(..., description='List of labeled clips')
+
+
+class SessionProgressResponse(BaseModel):
     '''Response model for session progress.'''
 
     session_id: str

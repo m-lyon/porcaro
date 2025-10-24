@@ -9,9 +9,10 @@ from fastapi import HTTPException
 from fastapi import status
 from fastapi.responses import Response
 
-from porcaro.api.models import ClipListResponse
+from porcaro.api.models import AudioClipList
+from porcaro.api.models import AudioClipResponse
+from porcaro.api.models import AudioClipListResponse
 from porcaro.processing.window import get_windowed_sample
-from porcaro.api.database.models import AudioClip
 from porcaro.api.services.audio_service import audio_clip_to_wav_bytes
 from porcaro.api.services.memory_service import in_memory_service
 from porcaro.api.services.database_service import database_session_service
@@ -21,8 +22,12 @@ logger = logging.getLogger('uvicorn')
 router = APIRouter()
 
 
-@router.get('/{session_id}/clips', operation_id='get_clips')
-async def get_clips(
+@router.get(
+    '/{session_id}/clips',
+    operation_id='get_clips',
+    response_model=AudioClipListResponse,
+)
+async def get_clips(  # noqa: ANN201
     session_id: str,
     page: Annotated[int, Query(ge=1, description='Page number')] = 1,
     page_size: Annotated[
@@ -31,7 +36,7 @@ async def get_clips(
     labeled: Annotated[
         bool | None, Query(description='Filter by labeled status')
     ] = None,
-) -> ClipListResponse:
+):
     '''Get a paginated list of clips for a session.'''
     session = database_session_service.get_session(session_id)
     if not session:
@@ -55,7 +60,7 @@ async def get_clips(
 
     logger.info(f'Returning {len(clips)} clips for session {session_id}')
 
-    return ClipListResponse(
+    return AudioClipList(
         clips=clips,
         total=total,
         page=page,
@@ -64,8 +69,12 @@ async def get_clips(
     )
 
 
-@router.get('/{session_id}/clips/{clip_id}', operation_id='get_clip')
-async def get_clip(session_id: str, clip_id: str) -> AudioClip:
+@router.get(
+    '/{session_id}/clips/{clip_id}',
+    operation_id='get_clip',
+    response_model=AudioClipResponse,
+)
+async def get_clip(session_id: str, clip_id: str):  # noqa: ANN201
     '''Get a specific clip by ID.'''
     session = database_session_service.get_session(session_id)
     if not session:

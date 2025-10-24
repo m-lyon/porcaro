@@ -8,12 +8,13 @@ from fastapi import APIRouter
 from fastapi import HTTPException
 from fastapi import status
 
-from porcaro.api.models import AllLabledClips
 from porcaro.api.models import LabelClipRequest
+from porcaro.api.models import AudioClipResponse
+from porcaro.api.models import LabeledClipsResponse
 from porcaro.api.models import LabeledDataStatistics
+from porcaro.api.models import AllLabledClipsResponse
 from porcaro.api.models import RemoveClipLabelResponse
 from porcaro.api.models import ExportLabeledDataResponse
-from porcaro.api.database.models import AudioClip
 from porcaro.api.services.database_service import database_session_service
 
 logger = logging.getLogger('uvicorn')
@@ -21,10 +22,12 @@ logger = logging.getLogger('uvicorn')
 router = APIRouter()
 
 
-@router.post('/{session_id}/clips/{clip_id}/label', operation_id='label_clip')
-async def label_clip(
-    session_id: str, clip_id: str, request: LabelClipRequest
-) -> AudioClip:
+@router.post(
+    '/{session_id}/clips/{clip_id}/label',
+    operation_id='label_clip',
+    response_model=AudioClipResponse,
+)
+async def label_clip(session_id: str, clip_id: str, request: LabelClipRequest):  # noqa: ANN201
     '''Submit a label for a specific clip.'''
     session = database_session_service.get_session(session_id)
     if not session:
@@ -187,8 +190,12 @@ async def get_labeled_data_statistics() -> LabeledDataStatistics:
         ) from e
 
 
-@router.get('/all_labeled_clips', operation_id='get_all_labeled_clips')
-async def get_all_labeled_clips() -> AllLabledClips:
+@router.get(
+    '/all_labeled_clips',
+    operation_id='get_all_labeled_clips',
+    response_model=AllLabledClipsResponse,
+)
+async def get_all_labeled_clips():  # noqa: ANN201
     '''Get all labeled clips from all sessions.'''
     clips = database_session_service.get_all_labeled_clips()
-    return AllLabledClips(clips=clips)
+    return LabeledClipsResponse(clips=clips)

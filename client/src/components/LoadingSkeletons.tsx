@@ -1,5 +1,5 @@
-import { Card, CardContent, CardHeader } from '@porcaro/components/ui/card';
 import { Skeleton } from '@porcaro/components/ui/skeleton';
+import { Card, CardContent, CardHeader } from '@porcaro/components/ui/card';
 
 export function ClipLoadingSkeleton() {
     return (

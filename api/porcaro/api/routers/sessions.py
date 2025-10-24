@@ -10,11 +10,11 @@ from fastapi import HTTPException
 from fastapi import status
 
 from porcaro.api.utils import get_upload_filepath
-from porcaro.api.models import SessionProgress
 from porcaro.api.models import ProcessAudioRequest
 from porcaro.api.models import DeleteSessionResponse
+from porcaro.api.models import LabelingSessionResponse
+from porcaro.api.models import SessionProgressResponse
 from porcaro.api.models import ProcessAudioSessionResponse
-from porcaro.api.database.models import LabelingSession
 from porcaro.api.services.audio_service import process_audio_file
 from porcaro.api.services.memory_service import in_memory_service
 from porcaro.api.services.database_service import database_session_service
@@ -24,8 +24,8 @@ logger = logging.getLogger('uvicorn')
 router = APIRouter()
 
 
-@router.post('/', operation_id='create_session')
-async def create_session(file: UploadFile) -> LabelingSession:
+@router.post('/', operation_id='create_session', response_model=LabelingSessionResponse)
+async def create_session(file: UploadFile):  # noqa: ANN201
     '''Create a new labeling session by uploading an audio file.'''
     if not file.filename:
         raise HTTPException(
@@ -71,8 +71,10 @@ async def create_session(file: UploadFile) -> LabelingSession:
         ) from e
 
 
-@router.get('/{session_id}', operation_id='get_session')
-async def get_session(session_id: str) -> LabelingSession:
+@router.get(
+    '/{session_id}', operation_id='get_session', response_model=LabelingSessionResponse
+)
+async def get_session(session_id: str):  # noqa: ANN201
     '''Get session information by ID.'''
     session = database_session_service.get_session(session_id)
     if not session:
@@ -81,6 +83,15 @@ async def get_session(session_id: str) -> LabelingSession:
         )
 
     return session
+
+
+@router.get(
+    '/', operation_id='get_sessions', response_model=list[LabelingSessionResponse]
+)
+async def get_sessions():  # noqa: ANN201
+    '''List all existing labeling sessions.'''
+    sessions = database_session_service.get_sessions()
+    return sessions
 
 
 @router.post('/{session_id}/process', operation_id='process_session_audio')
@@ -149,7 +160,7 @@ async def process_session_audio(
 
 
 @router.get('/{session_id}/progress', operation_id='get_session_progress')
-async def get_session_progress(session_id: str) -> SessionProgress:
+async def get_session_progress(session_id: str) -> SessionProgressResponse:
     '''Get the labeling progress for a session.'''
     session = database_session_service.get_session(session_id)
     if not session:
@@ -161,7 +172,7 @@ async def get_session_progress(session_id: str) -> SessionProgress:
     labeled_clips = database_session_service.count_labeled_clips(session_id)
     progress_percentage = (labeled_clips / total_clips * 100) if total_clips > 0 else 0
 
-    return SessionProgress(
+    return SessionProgressResponse(
         session_id=session_id,
         total_clips=total_clips,
         labeled_clips=labeled_clips,

@@ -8,11 +8,11 @@ import { Button } from '@porcaro/components/ui/button';
 import { CardTitle } from '@porcaro/components/ui/card';
 import { Upload, Music, FileAudio } from 'lucide-react';
 import { ProgressCard } from '@porcaro/components/ProgressCard';
-import { createSession, type LabelingSession, listSessions } from '@porcaro/api/generated';
 import { Card, CardContent, CardDescription, CardHeader } from '@porcaro/components/ui/card';
+import { createSession, type LabelingSessionResponse, getSessions } from '@porcaro/api/generated';
 
 export default function HomePage() {
-    const [sessions, setSessions] = useState<LabelingSession[]>();
+    const [sessions, setSessions] = useState<LabelingSessionResponse[]>();
     const [isUploading, setIsUploading] = useState<boolean>(false);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const navigate = useNavigate();
@@ -23,7 +23,7 @@ export default function HomePage() {
 
     const loadSessions = async () => {
         try {
-            const sessionsData = await listSessions();
+            const sessionsData = await getSessions();
             if (!sessionsData.data) {
                 toast.error('Failed to load sessions: No data returned');
                 return;
@@ -55,7 +55,7 @@ export default function HomePage() {
                 return;
             }
             toast.success(`Session created successfully: ${session.data.filename}`);
-            navigate(`/session/${session.data.session_id}`);
+            navigate(`/session/${session.data.id}`);
         } catch (error: unknown) {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
             toast.error('Failed to create session: ' + errorMessage);
@@ -132,7 +132,7 @@ export default function HomePage() {
                     ) : (
                         <div className='space-y-4'>
                             {sessions?.map((session) => (
-                                <ProgressCard key={session.session_id} session={session} />
+                                <ProgressCard key={session.id} session={session} />
                             ))}
                         </div>
                     )}

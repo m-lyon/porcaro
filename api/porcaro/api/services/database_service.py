@@ -61,6 +61,13 @@ class DatabaseSessionService:
             labeling_session = db_session.exec(statement).first()
             return labeling_session
 
+    def get_sessions(self) -> Sequence[LabelingSession]:
+        '''Get all sessions.'''
+        with next(get_session()) as db_session:
+            statement = select(LabelingSession)
+            sessions = db_session.exec(statement).all()
+            return sessions
+
     def update_session(
         self, session_id: str, updates: dict[str, Any]
     ) -> LabelingSession | None:

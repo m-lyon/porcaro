@@ -5,6 +5,7 @@ from enum import Enum
 from typing import Any
 from datetime import UTC
 from datetime import datetime
+from collections.abc import Sequence
 
 from sqlmodel import JSON
 from sqlmodel import ARRAY
@@ -84,14 +85,9 @@ class ProcessingMetadata(ProcessingMetadataModel, table=True):
     session: 'LabelingSession' = Relationship(back_populates='processing_metadata')
 
 
-class AudioClip(SQLModel, table=True):
-    '''Audio clip database model.'''
+class AudioClipModel(SQLModel):
+    '''Audio clip model.'''
 
-    id: str = Field(
-        default_factory=lambda: str(uuid.uuid4()),
-        primary_key=True,
-        description='Unique clip identifier',
-    )
     start_sample: int = Field(description='Start sample in the original audio')
     start_time: float = Field(description='Start time in seconds')
     end_sample: int = Field(description='End sample in the original audio')
@@ -121,6 +117,16 @@ class AudioClip(SQLModel, table=True):
         description='Path to the stored audio file',
     )
 
+
+class AudioClip(AudioClipModel, table=True):
+    '''Audio clip database model.'''
+
+    id: str = Field(
+        default_factory=lambda: str(uuid.uuid4()),
+        primary_key=True,
+        description='Unique clip identifier',
+    )
+
     # Foreign keys
     session_id: str = Field(
         foreign_key='labelingsession.id', description='Session this clip belongs to'
@@ -130,14 +136,19 @@ class AudioClip(SQLModel, table=True):
     session: 'LabelingSession' = Relationship(back_populates='clips')
 
 
-class LabelingSession(SQLModel, table=True):
+class AudioClipList(SQLModel):
+    '''Response model for listing clips.'''
+
+    clips: Sequence[AudioClip] = Field(..., description='List of audio clips')
+    total: int = Field(..., description='Total number of clips')
+    page: int = Field(..., description='Current page')
+    page_size: int = Field(..., description='Page size')
+    has_next: bool = Field(..., description='Whether there are more pages')
+
+
+class LabelingSessionModel(SQLModel):
     '''Labeling session database model.'''
 
-    id: str = Field(
-        default_factory=lambda: str(uuid.uuid4()),
-        primary_key=True,
-        description='Unique session identifier',
-    )
     filename: str = Field(description='Original audio filename')
     start_beat: float = Field(default=1, description='Starting beat offset')
     offset: float = Field(default=0.0, description='Offset in seconds')
@@ -149,6 +160,16 @@ class LabelingSession(SQLModel, table=True):
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(tz=UTC),
         description='Session creation time',
+    )
+
+
+class LabelingSession(LabelingSessionModel, table=True):
+    '''Labeling session database model.'''
+
+    id: str = Field(
+        default_factory=lambda: str(uuid.uuid4()),
+        primary_key=True,
+        description='Unique session identifier',
     )
 
     # Foreign keys
