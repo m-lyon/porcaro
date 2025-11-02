@@ -20,9 +20,9 @@ from porcaro.api.database.models import AudioClip
 from porcaro.api.database.models import DrumLabel
 from porcaro.api.database.models import TimeSignature
 from porcaro.api.database.models import LabelingSession
-from porcaro.api.database.models import ProcessingMetadata
+from porcaro.api.database.models import SessionMetadata
 from porcaro.api.database.models import TimeSignatureModel
-from porcaro.api.database.models import ProcessingMetadataModel
+from porcaro.api.database.models import SessionMetadataModel
 from porcaro.api.database.connection import get_session
 
 logger = logging.getLogger('uvicorn')
@@ -61,6 +61,13 @@ class DatabaseSessionService:
             labeling_session = db_session.exec(statement).first()
             return labeling_session
 
+    def get_session_metadata(self, session_id: str) -> SessionMetadata | None:
+        '''Get session metadata for a session by ID.'''
+        with next(get_session()) as db_session:
+            statement = select(SessionMetadata).where(SessionMetadata.id == session_id)
+            session_metadata = db_session.exec(statement).first()
+            return session_metadata
+
     def get_sessions(self) -> Sequence[LabelingSession]:
         '''Get all sessions.'''
         with next(get_session()) as db_session:
@@ -85,12 +92,12 @@ class DatabaseSessionService:
                     db_session, labeling_session, updates.pop('time_signature')
                 )
 
-            # Handle processing updates separately
-            if 'processing_metadata' in updates:
-                self._update_session_processing_metadata(
+            # Handle session metadata updates separately
+            if 'session_metadata' in updates:
+                self._update_session_metadata(
                     db_session,
                     labeling_session,
-                    updates.pop('processing_metadata'),
+                    updates.pop('session_metadata'),
                 )
 
             # Update other fields
@@ -129,35 +136,33 @@ class DatabaseSessionService:
         labeling_session.time_signature = time_sig
 
     @staticmethod
-    def _update_session_processing_metadata(
+    def _update_session_metadata(
         db_session: Session,
         labeling_session: LabelingSession,
-        metadata: ProcessingMetadataModel,
+        metadata: SessionMetadataModel,
     ) -> None:
-        '''Update or create processing metadata for a session.'''
-        if not isinstance(metadata, ProcessingMetadataModel):
-            raise TypeError(
-                'processing_metadata must be a ProcessingMetadataModel instance'
-            )
+        '''Update or create session metadata for a session.'''
+        if not isinstance(metadata, SessionMetadataModel):
+            raise TypeError('session_metadata must be a SessionMetadataModel instance')
 
         # Get existing metadata or create new
-        statement = select(ProcessingMetadata).where(
-            ProcessingMetadata.id == labeling_session.id
+        statement = select(SessionMetadata).where(
+            SessionMetadata.id == labeling_session.id
         )
-        proc_metadata = db_session.exec(statement).first()
+        session_metadata = db_session.exec(statement).first()
 
-        if not proc_metadata:
-            proc_metadata = ProcessingMetadata(
+        if not session_metadata:
+            session_metadata = SessionMetadata(
                 id=labeling_session.id, **metadata.model_dump()
             )
         else:
             for key, value in metadata.model_dump().items():
-                setattr(proc_metadata, key, value)
-        db_session.add(proc_metadata)
+                setattr(session_metadata, key, value)
+        db_session.add(session_metadata)
         db_session.commit()
-        db_session.refresh(proc_metadata)
+        db_session.refresh(session_metadata)
 
-        labeling_session.processing_metadata = proc_metadata
+        labeling_session.session_metadata = session_metadata
 
     def delete_session(self, session_id: str) -> bool:
         '''Delete a session and clean up resources.'''

@@ -44,7 +44,7 @@ async def get_clips(  # noqa: ANN201
             status_code=status.HTTP_404_NOT_FOUND, detail='Session not found'
         )
 
-    if not session.processing_metadata or not session.processing_metadata.processed:
+    if not session.session_metadata or not session.session_metadata.processed:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail='Session audio has not been processed yet',
@@ -101,7 +101,7 @@ async def get_clip_audio(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail='Session not found'
         )
-    if not session.processing_metadata:
+    if not session.session_metadata:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail='Session processing metadata is missing',
@@ -114,7 +114,7 @@ async def get_clip_audio(
         )
 
     track = in_memory_service.get_session_track(session_id)
-    sample_rate = session.processing_metadata.song_sample_rate
+    sample_rate = session.session_metadata.song_sample_rate
 
     # Get audio data from DataFrame
     audio_data = get_windowed_sample(

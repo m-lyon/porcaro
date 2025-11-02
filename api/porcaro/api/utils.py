@@ -18,6 +18,12 @@ def get_upload_filepath(session: LabelingSession) -> Path:
     return get_session_directory(session).joinpath(session.filename)
 
 
+def get_drum_track_filepath(session: LabelingSession) -> Path:
+    '''Get the file path of the drum-isolated track for a session.'''
+    upload_path = get_upload_filepath(session)
+    return upload_path.with_name(f'{upload_path.stem}_drums.wav')
+
+
 def get_track_filepath(session: LabelingSession | str) -> Path:
     '''Get the file path of the processed track for a session.'''
     return get_session_directory(session).joinpath('track.npy')

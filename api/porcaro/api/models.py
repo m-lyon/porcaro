@@ -13,15 +13,25 @@ from porcaro.api.database.models import AudioClipList
 from porcaro.api.database.models import AudioClipModel
 from porcaro.api.database.models import TimeSignatureModel
 from porcaro.api.database.models import LabelingSessionModel
-from porcaro.api.database.models import ProcessingMetadataModel
+from porcaro.api.database.models import SessionMetadataModel
 
 
 class TimeSignatureResponse(TimeSignatureModel):
     '''Time signature response model.'''
 
 
-class ProcessingMetadataResponse(ProcessingMetadataModel):
+class SessionMetadataResponse(SessionMetadataModel):
+    '''Session metadata response model.'''
+
+
+class ProcessingResponse(BaseModel):
     '''Processing metadata response model.'''
+
+    session_id: str = Field(..., description='Unique session identifier')
+    task_id: str = Field(..., description='Celery task identifier')
+    progress_percentage: int = Field(..., description='Processing progress percentage')
+    current_state: str = Field(..., description='Current processing state')
+    current_status: str = Field(..., description='Current processing status')
 
 
 class LabelingSessionResponse(LabelingSessionModel):
@@ -32,8 +42,8 @@ class LabelingSessionResponse(LabelingSessionModel):
     time_signature: TimeSignatureResponse | None = Field(
         default=None, description='Time signature information'
     )
-    processing_metadata: ProcessingMetadataResponse | None = Field(
-        default=None, description='Processing metadata information'
+    session_metadata: SessionMetadataResponse | None = Field(
+        default=None, description='Session metadata information'
     )
 
 

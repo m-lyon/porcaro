@@ -56,7 +56,7 @@ class TimeSignature(TimeSignatureModel, table=True):
             self.id = f'{self.numerator}-{self.denominator}'
 
 
-class ProcessingMetadataModel(SQLModel):
+class SessionMetadataModel(SQLModel):
     '''Processing metadata model.'''
 
     processed: bool = Field(..., description='Whether processing is complete')
@@ -71,7 +71,7 @@ class ProcessingMetadataModel(SQLModel):
     model_weights_path: str = Field(..., description='Path to the model weights used')
 
 
-class ProcessingMetadata(ProcessingMetadataModel, table=True):
+class SessionMetadata(SessionMetadataModel, table=True):
     '''Processing metadata database model.'''
 
     id: str = Field(
@@ -82,7 +82,7 @@ class ProcessingMetadata(ProcessingMetadataModel, table=True):
     )
 
     # Relationships
-    session: 'LabelingSession' = Relationship(back_populates='processing_metadata')
+    session: 'LabelingSession' = Relationship(back_populates='session_metadata')
 
 
 class AudioClipModel(SQLModel):
@@ -150,6 +150,7 @@ class LabelingSessionModel(SQLModel):
     '''Labeling session database model.'''
 
     filename: str = Field(description='Original audio filename')
+    name: str | None = Field(default=None, description='Optional session name')
     start_beat: float = Field(default=1, description='Starting beat offset')
     offset: float = Field(default=0.0, description='Offset in seconds')
     duration: float | None = Field(
@@ -186,7 +187,7 @@ class LabelingSession(LabelingSessionModel, table=True):
     clips: list['AudioClip'] = Relationship(
         back_populates='session', cascade_delete=True
     )
-    processing_metadata: ProcessingMetadata | None = Relationship(
+    session_metadata: SessionMetadata | None = Relationship(
         back_populates='session',
         cascade_delete=True,
         sa_relationship_kwargs={'lazy': 'selectin'},

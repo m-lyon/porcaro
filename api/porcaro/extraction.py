@@ -17,12 +17,12 @@ from porcaro.models.demucs import MODEL_DIRPATH
 logger = logging.getLogger(__name__)
 
 
-def extract_drums_demucs(
+def extract_drum_track_v1(
     fpath: str | Path,
     device: str = 'cpu',
     progress_bar: bool = True,
-    drum_start: int | None = None,
-    drum_end: int | None = None,
+    offset: float = 0.0,
+    duration: float | None = None,
 ) -> tuple[np.ndarray, int]:
     '''Extract the drum track from a given audio file using Demucs.
 
@@ -30,10 +30,9 @@ def extract_drums_demucs(
         fpath (str | Path): Path to the audio file.
         device (str): Device to use for processing. Default is "cpu".
         progress_bar (bool): Whether to show a progress bar. Default is True.
-        drum_start (int | None): Start time for the drum extraction in seconds.
-            Default is None.
-        drum_end (int | None): End time for the drum extraction in seconds. Default
-            is None.
+        offset (float): Offset in seconds to start reading the audio file.
+        duration (float | None): Duration in seconds to read from the audio file.
+            If None, reads until the end of the file.
 
     Returns:
         None
@@ -43,21 +42,11 @@ def extract_drums_demucs(
         pretrained.get_model(name=model, repo=MODEL_DIRPATH) for model in MODELS
     ]  # type: ignore
     model = apply.BagOfModels(sub_models)
-    # assert that drum_start and drum_end are either both None or both not None
-    if (drum_start is None) != (drum_end is None):
-        raise ValueError(
-            'drum_start and drum_end must be either both None or both not None'
-        )
-    duration = (
-        drum_end - drum_start
-        if drum_end is not None and drum_start is not None
-        else None
-    )
     wav = audio.AudioFile(Path(fpath)).read(
         streams=0,  # type: ignore
         samplerate=model.samplerate,
         channels=model.audio_channels,
-        seek_time=drum_start,
+        seek_time=offset if offset else None,
         duration=duration,
     )
 

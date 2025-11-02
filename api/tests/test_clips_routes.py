@@ -1,6 +1,6 @@
 import numpy as np
 
-from porcaro.api.database.models import ProcessingMetadata
+from porcaro.api.database.models import SessionMetadata
 
 # TODO(m-lyon): #3 Mock the relevant database and in memory service calls used in these
 # tests so that they are unit tests rather than integration tests.
@@ -33,7 +33,7 @@ def test_get_clips_no_clips_endpoint(
     '''Test the get clips API endpoint when no clips exist.'''
     client, _ = client_single_session
     # Add processing metadata but no clips
-    processing_metadata = ProcessingMetadata(
+    processing_metadata = SessionMetadata(
         id='test-id',
         processed=True,
         duration=10.0,

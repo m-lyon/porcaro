@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from porcaro.api.database.models import ProcessingMetadataModel
+from porcaro.api.database.models import SessionMetadataModel
 
 # TODO(m-lyon): #3 Mock the relevant database and in memory service calls used in these
 # tests so that they are unit tests rather than integration tests.
@@ -60,7 +60,7 @@ def test_process_session_audio_endpoint(client_single_session, sample_session, m
     upload_path.touch()
     mock_track = np.array([1, 2, 3])  # Simple array with nbytes
     mock_df = pd.DataFrame()
-    mock_metadata = ProcessingMetadataModel(
+    mock_metadata = SessionMetadataModel(
         processed=True,
         duration=10.0,
         song_sample_rate=44100.0,

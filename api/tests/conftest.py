@@ -14,7 +14,7 @@ from porcaro.api.database.models import AudioClip
 from porcaro.api.database.models import DrumLabel
 from porcaro.api.database.models import TimeSignature
 from porcaro.api.database.models import LabelingSession
-from porcaro.api.database.models import ProcessingMetadata
+from porcaro.api.database.models import SessionMetadata
 from porcaro.api.services.database_service import DatabaseSessionService
 
 # Create PostgreSQL process and client fixtures
@@ -155,7 +155,7 @@ def sample_session(test_db_session):
 def sample_session_expanded(test_db_session, make_clips):
     '''Create a sample session for testing with expanded clips.'''
     session = LabelingSession(id='expanded', filename='expanded.wav')
-    processing_metadata = ProcessingMetadata(
+    processing_metadata = SessionMetadata(
         id='expanded',
         processed=True,
         duration=10.0,
@@ -183,7 +183,7 @@ def multi_sample_expanded_sessions(test_db_session, make_clips):
     test_db_session.add(time_signature)
     for i in range(3):
         session = LabelingSession(id=f'expanded-{i}', filename=f'expanded-{i}.wav')
-        processing_metadata = ProcessingMetadata(
+        processing_metadata = SessionMetadata(
             id=f'expanded-{i}',
             processed=True,
             duration=10.0 + i,
