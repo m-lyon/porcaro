@@ -3,7 +3,7 @@ import os
 from celery import Celery
 
 # Create Celery instance
-celery_app = Celery(
+app = Celery(
     'porcaro_tasks',
     broker=os.getenv('CELERY_BROKER_URL', 'redis://localhost:6379/0'),
     backend=os.getenv('CELERY_RESULT_BACKEND', 'redis://localhost:6379/0'),
@@ -11,7 +11,7 @@ celery_app = Celery(
 )
 
 # Configuration
-celery_app.conf.update(
+app.conf.update(
     task_serializer='json',
     accept_content=['json'],
     result_serializer='json',

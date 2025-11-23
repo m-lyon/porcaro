@@ -9,9 +9,10 @@ import { Progress } from '@porcaro/components/ui/progress';
 import { SelectValue } from '@porcaro/components/ui/select';
 import { deleteSession, type SessionProgressResponse } from '@porcaro/api/generated';
 import { ArrowLeft, Settings, Play, BarChart3, Download, Trash2 } from 'lucide-react';
+import { getProcessingStatus, type ProcessingResponse } from '@porcaro/api/generated';
 import { getSessionProgress, type LabelingSessionResponse } from '@porcaro/api/generated';
-import { exportLabeledData, getSession, processSessionAudio } from '@porcaro/api/generated';
 import { Card, CardContent, CardDescription, CardHeader } from '@porcaro/components/ui/card';
+import { exportLabeledData, getSession, startSessionProcessing } from '@porcaro/api/generated';
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@porcaro/components/ui/select';
 
 export default function SessionPage() {
@@ -22,6 +23,8 @@ export default function SessionPage() {
     const [progress, setProgress] = useState<SessionProgressResponse | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
+    const [processingStatus, setProcessingStatus] = useState<ProcessingResponse | null>(null);
+    const [taskId, setTaskId] = useState<string | null>(null);
 
     const [timeSignature, setTimeSignature] = useState({ numerator: 4, denominator: 4 });
     const [startBeat, setStartBeat] = useState(1);
@@ -72,6 +75,63 @@ export default function SessionPage() {
         setIsLoading(false);
     }, [sessionId, navigate]);
 
+    // Polling function for processing status
+    const pollProcessingStatus = useCallback(
+        async (sessionId: string, taskId: string) => {
+            try {
+                const statusResponse = await getProcessingStatus({
+                    path: { session_id: sessionId, task_id: taskId },
+                });
+
+                if (statusResponse.data) {
+                    setProcessingStatus(statusResponse.data);
+
+                    // Check if processing is complete
+                    if (statusResponse.data.current_state === 'SUCCESS') {
+                        setIsProcessing(false);
+                        setTaskId(null);
+                        toast.success('Audio processing completed successfully!');
+                        // Reload session to get updated data
+                        await loadSession();
+                        return false; // Stop polling
+                    } else if (statusResponse.data.current_state === 'FAILURE') {
+                        setIsProcessing(false);
+                        setTaskId(null);
+                        toast.error(
+                            'Audio processing failed: ' + statusResponse.data.current_status
+                        );
+                        return false; // Stop polling
+                    }
+
+                    return true; // Continue polling
+                }
+            } catch (error) {
+                console.error('Error polling processing status:', error);
+                const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+                toast.error('Failed to get processing status: ' + errorMessage);
+                setIsProcessing(false);
+                setTaskId(null);
+                return false; // Stop polling
+            }
+            return false;
+        },
+        [loadSession]
+    );
+
+    // Effect to handle polling when there's an active task
+    useEffect(() => {
+        if (!taskId || !sessionId) return;
+
+        const pollInterval = setInterval(async () => {
+            const shouldContinue = await pollProcessingStatus(sessionId, taskId);
+            if (!shouldContinue) {
+                clearInterval(pollInterval);
+            }
+        }, 1000); // Poll every second
+
+        return () => clearInterval(pollInterval);
+    }, [taskId, sessionId, pollProcessingStatus]);
+
     useEffect(() => {
         loadSession();
     }, [loadSession]);
@@ -82,6 +142,7 @@ export default function SessionPage() {
         }
 
         setIsProcessing(true);
+        setProcessingStatus(null);
         try {
             const processRequest = {
                 time_signature: timeSignature,
@@ -91,18 +152,19 @@ export default function SessionPage() {
                 resolution: resolution,
             };
 
-            await processSessionAudio({
+            const response = await startSessionProcessing({
                 body: processRequest,
                 path: { session_id: session.id },
             });
-            toast.success('Audio processing started successfully!');
 
-            // Reload session to get updated status
-            await loadSession();
+            if (response.data) {
+                setTaskId(response.data.task_id);
+                setProcessingStatus(response.data);
+                toast.success('Audio processing started successfully!');
+            }
         } catch (error: unknown) {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-            toast.error('Failed to process audio: ' + errorMessage);
-        } finally {
+            toast.error('Failed to start processing: ' + errorMessage);
             setIsProcessing(false);
         }
     };
@@ -180,7 +242,7 @@ export default function SessionPage() {
         );
     }
 
-    const isProcessed = session.processing_metadata?.processed ?? false;
+    const isProcessed = session.session_metadata?.processed ?? false;
 
     return (
         <div className='space-y-6'>
@@ -322,7 +384,10 @@ export default function SessionPage() {
                             className='w-full'
                         >
                             {isProcessing ? (
-                                <>Processing Audio...</>
+                                <>
+                                    <div className='w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2'></div>
+                                    Processing Audio...
+                                </>
                             ) : isProcessed ? (
                                 <>Audio Already Processed</>
                             ) : (
@@ -349,7 +414,9 @@ export default function SessionPage() {
                                 <div>
                                     <span className='text-muted-foreground'>Status:</span>
                                     <div className='font-medium'>
-                                        {isProcessed ? (
+                                        {isProcessing ? (
+                                            <span className='text-blue-600'>Processing...</span>
+                                        ) : isProcessed ? (
                                             <span className='text-green-600'>Processed</span>
                                         ) : (
                                             <span className='text-yellow-600'>
@@ -374,6 +441,28 @@ export default function SessionPage() {
                                 </div>
                             </div>
 
+                            {/* Processing Progress */}
+                            {isProcessing && processingStatus && (
+                                <div className='space-y-2 p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border'>
+                                    <div className='flex justify-between text-sm'>
+                                        <span className='font-medium text-blue-700 dark:text-blue-300'>
+                                            {processingStatus.current_status}
+                                        </span>
+                                        <span className='text-blue-600 dark:text-blue-400'>
+                                            {processingStatus.progress_percentage}%
+                                        </span>
+                                    </div>
+                                    <Progress
+                                        value={processingStatus.progress_percentage}
+                                        className='h-2'
+                                    />
+                                    <div className='text-xs text-blue-600 dark:text-blue-400'>
+                                        State: {processingStatus.current_state}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Labeling Progress */}
                             {isProcessed && progress.total_clips > 0 && (
                                 <div className='space-y-2'>
                                     <div className='flex justify-between text-sm'>

@@ -134,24 +134,39 @@ async def start_session_processing(
 async def get_processing_status(session_id: str, task_id: str) -> ProcessingResponse:
     '''Get the current processing status for a session task.'''
     task_result = process_audio_task.AsyncResult(task_id)
-    # TODO: test what exception is raised when given invalid task_id
 
     # Initialize defaults
     progress_percentage = 0
     current_status = 'Unknown status'
 
-    if task_result.status == 'PENDING':
-        current_status = 'Task is waiting to be processed'
-    elif task_result.status == 'PROGRESS':
-        progress_percentage = task_result.info['current']
-        current_status = task_result.info['status']
-    elif task_result.status == 'SUCCESS':
-        progress_percentage = 100
-        current_status = (
-            f"Completed! Processed {task_result.result['total_clips']} clips"
-        )
-    elif task_result.status == 'FAILURE':
-        current_status = task_result.info['status']
+    try:
+        if task_result.status == 'PENDING':
+            current_status = 'Task is waiting to be processed'
+        elif task_result.status == 'PROGRESS':
+            progress_percentage = task_result.info.get('current', 0)
+            current_status = task_result.info.get('status', 'Processing...')
+        elif task_result.status == 'SUCCESS':
+            progress_percentage = 100
+            result = task_result.result or {}
+            total_clips = result.get('total_clips', 0)
+            current_status = f'Completed! Processed {total_clips} clips'
+        elif task_result.status == 'FAILURE':
+            # Safely handle exception information
+            try:
+                if task_result.result:
+                    error_msg = (
+                        f'{type(task_result.result).__name__}: {task_result.result}'
+                    )
+                else:
+                    error_msg = 'Task failed with unknown error'
+                logger.info(f'Task {task_id} failed with error: {error_msg}')
+            except (KeyError, AttributeError, TypeError):
+                logger.exception(f'Error retrieving task failure info for {task_id}')
+                error_msg = 'Task failed with unknown error'
+            current_status = f'Failed: {error_msg}'
+    except Exception:
+        logger.exception(f'Error retrieving task status for {task_id}')
+        current_status = 'Error retrieving task status'
 
     response = ProcessingResponse(
         session_id=session_id,

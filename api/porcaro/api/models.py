@@ -1,5 +1,6 @@
 '''Pydantic models for the data labeling API.'''
 
+from enum import Enum
 from typing import Any
 from datetime import datetime
 from collections.abc import Sequence
@@ -47,6 +48,13 @@ class LabelingSessionResponse(LabelingSessionModel):
     )
 
 
+class DeviceEnum(str, Enum):
+    '''Enumeration of supported processing devices.'''
+
+    CPU = 'cpu'
+    GPU = 'cuda'
+
+
 class ProcessAudioRequest(BaseModel):
     '''Request model for processing audio.'''
 
@@ -57,6 +65,7 @@ class ProcessAudioRequest(BaseModel):
         default=None, gt=0, description='Duration to process'
     )
     resolution: int = Field(default=16, description='Window size resolution')
+    device: DeviceEnum = Field(default=DeviceEnum.CPU, description='Processing device')
 
 
 class LabelClipRequest(BaseModel):

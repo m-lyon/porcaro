@@ -4,7 +4,8 @@ from celery import Task
 
 from porcaro.api.utils import get_upload_filepath
 from porcaro.api.utils import get_drum_track_filepath
-from porcaro.api.celery_app import celery_app
+from porcaro.api.celery import app
+from porcaro.api.models import ProcessAudioRequest
 from porcaro.api.services.audio_service import predict_from_drum_track
 from porcaro.api.services.audio_service import create_drum_isolated_track
 from porcaro.api.services.memory_service import in_memory_service
@@ -17,10 +18,22 @@ class TaskError(Exception):
     '''Custom exception for task errors.'''
 
 
-@celery_app.task(bind=True)
+def _validate_request_data(request_data: dict) -> ProcessAudioRequest:
+    '''Validate the request data for processing audio.'''
+    try:
+        request = ProcessAudioRequest(**request_data)
+        return request
+    except Exception as e:
+        raise TaskError(f'Invalid request data: {e}') from e
+
+
+@app.task(bind=True)
 def process_audio_task(self: Task, session_id: str, request_data: dict) -> dict:
     '''Celery task to process audio file.'''
     try:
+        # Validate required parameters
+        request = _validate_request_data(request_data)
+
         # Update task progress
         self.update_state(
             state='PROGRESS',
@@ -49,9 +62,9 @@ def process_audio_task(self: Task, session_id: str, request_data: dict) -> dict:
         create_drum_isolated_track(
             file_path=file_path,
             output_path=drum_file_path,
-            device=request_data['device'],
-            offset=request_data['offset'],
-            duration=request_data['duration'],
+            device=request.device,
+            offset=request.offset,
+            duration=request.duration,
         )
 
         # Update progress
@@ -63,11 +76,11 @@ def process_audio_task(self: Task, session_id: str, request_data: dict) -> dict:
         # Process audio through porcaro pipeline
         track, df, bpm, metadata = predict_from_drum_track(
             file_path=drum_file_path,
-            time_sig=request_data['time_signature'],
-            start_beat=request_data['start_beat'],
-            offset=request_data['offset'],
-            duration=request_data['duration'],
-            resolution=request_data['resolution'],
+            time_sig=request.time_signature,
+            start_beat=request.start_beat,
+            offset=request.offset,
+            duration=request.duration,
+            resolution=request.resolution,
         )
 
         # Update progress
@@ -90,10 +103,10 @@ def process_audio_task(self: Task, session_id: str, request_data: dict) -> dict:
         database_session_service.update_session(
             session_id,
             {
-                'time_signature': request_data['time_signature'],
-                'start_beat': request_data['start_beat'],
-                'offset': request_data['offset'],
-                'resolution': request_data['resolution'],
+                'time_signature': request.time_signature,
+                'start_beat': request.start_beat,
+                'offset': request.offset,
+                'resolution': request.resolution,
                 'bpm': bpm,
                 'session_metadata': metadata,
             },
@@ -112,6 +125,7 @@ def process_audio_task(self: Task, session_id: str, request_data: dict) -> dict:
     except Exception as e:
         logger.exception(f'Error processing audio for session {session_id}')
         self.update_state(
-            state='FAILURE', meta={'status': str(e), 'session_id': session_id}
+            state='FAILURE',
+            meta={'exc_type': type(e).__name__, 'exc_message': e.__str__()},
         )
         raise

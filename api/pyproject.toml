@@ -1,49 +1,51 @@
 [project]
-name = "porcaro"
-version = "0.1.0"
-description = "Automatic drum transcription using deep learning"
-readme = "README.md"
-requires-python = ">=3.12"
+name = 'porcaro'
+version = '0.1.0'
+description = 'Automatic drum transcription using deep learning'
+readme = 'README.md'
+requires-python = '>=3.12'
 dependencies = [
-    "demucs==3.0.4",
-    "dotenv>=0.9.9",
-    "fastapi>=0.115.12",
-    "librosa>=0.11.0",
-    "music21<8",
-    "pandas>=2.2.3",
-    "pedalboard>=0.9.17",
-    "python-multipart>=0.0.20",
-    "soundfile>=0.13.1",
-    "torch>2.2",
-    "uvicorn[standard]>=0.31.1",
-    "psycopg[binary,pool]>=3.2.10",
-    "sqlmodel>=0.0.25",
-    "python-dotenv>=1.1.0",
-    "celery[redis]>=5.5.3",
+    'demucs==3.0.4',
+    'dotenv>=0.9.9',
+    'fastapi>=0.115.12',
+    'librosa>=0.11.0',
+    'music21<8',
+    'pandas>=2.2.3',
+    'pedalboard>=0.9.17',
+    'python-multipart>=0.0.20',
+    'soundfile>=0.13.1',
+    'torch>2.2',
+    'uvicorn[standard]>=0.31.1',
+    'psycopg[binary,pool]>=3.2.10',
+    'sqlmodel>=0.0.25',
+    'python-dotenv>=1.1.0',
+    'celery[redis]>=5.5.3',
 ]
 
 [project.scripts]
-labeler = "porcaro.api.app:main"
+labeler = 'porcaro.cli.start_app:main'
+celery-worker = 'porcaro.cli.start_celery:main'
 
 [build-system]
-requires = ["setuptools", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ['setuptools', 'wheel']
+build-backend = 'setuptools.build_meta'
 
 [tool.setuptools.packages.find]
-where = ["."]
-exclude = ["notebooks"]
+where = ['.']
+exclude = ['notebooks']
 
 [dependency-groups]
 dev = [
-    "h5py>=3.13.0",
-    "ipykernel>=6.29.5",
-    "matplotlib>=3.10.3",
-    "pytubefix>=8.13.1",
-    "pytest>=8.3.4",
-    "pytest-asyncio>=0.24.0",
-    "httpx>=0.28.1",
-    "pytest-postgresql>=7.0.2",
-    "pytest-mock>=3.15.1",
+    'h5py>=3.13.0',
+    'ipykernel>=6.29.5',
+    'matplotlib>=3.10.3',
+    'pytubefix>=8.13.1',
+    'pytest>=8.3.4',
+    'pytest-asyncio>=0.24.0',
+    'httpx>=0.28.1',
+    'pytest-postgresql>=7.0.2',
+    'pytest-mock>=3.15.1',
+    'alembic>=1.17.1',
 ]
 
 [tool.pytest.ini_options]
@@ -55,59 +57,59 @@ filterwarnings = [
 line-length = 88
 
 [tool.ruff.format]
-quote-style = "preserve"
+quote-style = 'preserve'
 
 [tool.ruff.lint]
 isort.force-single-line = true
 isort.length-sort = true
 flake8-annotations = { mypy-init-return = true }
-flake8-quotes = { inline-quotes = "single" }
-select = ["ALL"]
+flake8-quotes = { inline-quotes = 'single' }
+select = ['ALL']
 ignore = [
-    "ANN401",
-    "ARG002",
-    "COM812",
-    "D100",
-    "D101",
-    "D104",
-    "D203",
-    "D213",
-    "D300",    # allow single quotes
-    "D400",
-    "D401",
-    "D404",
-    "D413",
-    "D415",
-    "EM101",
-    "EM102",
-    "FA102",
-    "FBT001",
-    "FBT002",
-    "FIX002",
-    "G004",
-    "PGH003",
-    "PLR0913",
-    "PYI041",
-    "Q002",    # allow single quotes
-    "RET504",
-    "S311",
-    "S607",
-    "S603",
-    "SIM105",
-    "TRY300",
-    "TRY003",
+    'ANN401',
+    'ARG002',
+    'COM812',
+    'D100',
+    'D101',
+    'D104',
+    'D203',
+    'D213',
+    'D300',    # allow single quotes
+    'D400',
+    'D401',
+    'D404',
+    'D413',
+    'D415',
+    'EM101',
+    'EM102',
+    'FA102',
+    'FBT001',
+    'FBT002',
+    'FIX002',
+    'G004',
+    'PGH003',
+    'PLR0913',
+    'PYI041',
+    'Q002',    # allow single quotes
+    'RET504',
+    'S311',
+    'S607',
+    'S603',
+    'SIM105',
+    'TRY300',
+    'TRY003',
 ]
-per-file-ignores."tests/**/*.py" = [
-    "ANN001",
-    "ANN201",
-    "ANN202",
-    "ANN204",
-    "INP001",
-    "D102",
-    "D103",
-    "D105",
-    "D107",
-    "S101",
-    "PGH003",
-    "PLR2004",
+per-file-ignores.'tests/**/*.py' = [
+    'ANN001',
+    'ANN201',
+    'ANN202',
+    'ANN204',
+    'INP001',
+    'D102',
+    'D103',
+    'D105',
+    'D107',
+    'S101',
+    'PGH003',
+    'PLR2004',
 ]
