@@ -8,9 +8,11 @@ from fastapi import APIRouter
 from fastapi import UploadFile
 from fastapi import HTTPException
 from fastapi import status
+from fastapi.responses import FileResponse
 
 from porcaro.api.tasks import process_audio_task
 from porcaro.api.utils import get_upload_filepath
+from porcaro.api.utils import get_drum_track_filepath
 from porcaro.api.models import ProcessingResponse
 from porcaro.api.models import ProcessAudioRequest
 from porcaro.api.models import DeleteSessionResponse
@@ -211,3 +213,50 @@ async def delete_session(session_id: str) -> DeleteSessionResponse:
         )
 
     return DeleteSessionResponse(success=True, session_id=session_id)
+
+
+@router.get('/{session_id}/audio', operation_id='get_session_audio')
+async def get_session_audio(session_id: str) -> FileResponse:
+    '''Get the full original audio file for a session.'''
+    session = database_session_service.get_session(session_id)
+    if not session:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail='Session not found'
+        )
+
+    file_path = get_upload_filepath(session)
+    if not file_path.exists():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail='Audio file not found for this session',
+        )
+
+    return FileResponse(
+        path=file_path,
+        media_type='audio/wav',
+        filename=session.filename,
+    )
+
+
+@router.get('/{session_id}/audio/drums', operation_id='get_session_drums_audio')
+async def get_session_drums_audio(session_id: str) -> FileResponse:
+    '''Get the full drum-isolated audio track for a session.'''
+    session = database_session_service.get_session(session_id)
+    if not session:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail='Session not found'
+        )
+
+    drum_file_path = get_drum_track_filepath(session)
+    if not drum_file_path.exists():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail='Drum-isolated audio file not found. '
+            'Session may not be processed yet.',
+        )
+
+    return FileResponse(
+        path=drum_file_path,
+        media_type='audio/wav',
+        filename=f'{drum_file_path.stem}.wav',
+    )

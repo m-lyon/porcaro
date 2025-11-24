@@ -3,18 +3,15 @@
 import shutil
 import logging
 from typing import Any
-from pathlib import Path
 from datetime import UTC
 from datetime import datetime
 from collections.abc import Sequence
 
-import numpy as np
 import pandas as pd
 from sqlmodel import Session
 from sqlmodel import col
 from sqlmodel import select
 
-from porcaro.api.utils import get_clip_filepath
 from porcaro.api.utils import get_session_directory
 from porcaro.api.database.models import AudioClip
 from porcaro.api.database.models import DrumLabel
@@ -189,7 +186,6 @@ class DatabaseSessionService:
     # --- Clip Management ---
     def save_clips_from_dataframe(self, session_id: str, df: pd.DataFrame) -> int:
         '''Save clips to database.'''
-        created_files = []
         with next(get_session()) as db_session:
             try:
                 for _, row in df.iterrows():
@@ -211,27 +207,9 @@ class DatabaseSessionService:
                         predicted_labels=predicted_labels,
                         session_id=session_id,
                     )
-                    file_path = get_clip_filepath(clip)
-                    np.save(file_path, row['audio_clip'])
-                    created_files.append(file_path)
-                    clip.audio_file_path = str(file_path)
                     db_session.add(clip)
                 db_session.commit()
             except Exception:
-                # Clean up any files that were created
-                for file_path in created_files:
-                    try:
-                        if file_path.exists():
-                            file_path.unlink()
-                            logger.debug(f'Cleaned up file: {file_path}')
-                    except (
-                        FileNotFoundError,
-                        PermissionError,
-                        OSError,
-                    ) as cleanup_error:
-                        logger.warning(
-                            f'Failed to cleanup file {file_path}: {cleanup_error}'
-                        )
                 logger.exception(f'Error saving clips for session {session_id}')
                 raise
         return len(df)
@@ -282,7 +260,7 @@ class DatabaseSessionService:
             return clip
 
     def delete_clip(self, session_id: str, clip_id: str) -> bool:
-        '''Delete a specific clip and its associated audio file.'''
+        '''Delete a specific clip.'''
         with next(get_session()) as db_session:
             statement = select(AudioClip).where(
                 AudioClip.session_id == session_id,
@@ -292,16 +270,6 @@ class DatabaseSessionService:
 
             if not clip:
                 return False
-
-            # Delete associated audio file if it exists
-            if clip.audio_file_path:
-                file_path = Path(clip.audio_file_path)
-                try:
-                    if file_path.exists():
-                        file_path.unlink()
-                        logger.debug(f'Deleted audio file: {file_path}')
-                except (FileNotFoundError, PermissionError, OSError) as e:
-                    logger.warning(f'Failed to delete audio file {file_path}: {e}')
 
             # Delete clip from database
             db_session.delete(clip)

@@ -112,10 +112,6 @@ class AudioClipModel(SQLModel):
     labeled_at: datetime | None = Field(
         default=None, description='When the clip was labeled'
     )
-    audio_file_path: str | None = Field(
-        default_factory=lambda: datetime.now(tz=UTC),
-        description='Path to the stored audio file',
-    )
 
 
 class AudioClip(AudioClipModel, table=True):

@@ -259,7 +259,7 @@ def test_get_all_labeled_clips(test_db_service):
     assert DrumLabel.SNARE_DRUM in user_labels
 
 
-def test_save_clips_from_dataframe(test_db_service, mocker, tmp_path):
+def test_save_clips_from_dataframe(test_db_service):
     '''Test saving clips from pandas DataFrame.'''
     import numpy as np
     import pandas as pd
@@ -284,11 +284,6 @@ def test_save_clips_from_dataframe(test_db_service, mocker, tmp_path):
         ],
     }
     clips_df = pd.DataFrame(clips_data)
-    mocker.patch('numpy.save')
-    mocker.patch(
-        'porcaro.api.services.database_service.get_clip_filepath',
-        side_effect=[tmp_path / f'clip_{i}.npy' for i in range(3)],
-    )
 
     count = test_db_service.save_clips_from_dataframe(session.id, clips_df)
 
@@ -335,13 +330,9 @@ def test_get_clip(test_db_service, make_clips):
     assert wrong_session_clip is None
 
 
-def test_delete_clip(test_db_service, tmp_path):
+def test_delete_clip(test_db_service):
     '''Test deleting a specific clip.'''
     session = test_db_service.create_session('test_audio.wav')
-
-    audio_clip_path = tmp_path / 'clip.npy'
-    audio_clip_path.touch()
-    assert audio_clip_path.exists()
 
     # Create and save a clip
     clip = AudioClip(
@@ -354,7 +345,6 @@ def test_delete_clip(test_db_service, tmp_path):
         peak_time=0.15,
         predicted_labels=[DrumLabel.KICK_DRUM],
         session_id=session.id,
-        audio_file_path=str(audio_clip_path),
     )
 
     test_db_service.save_clips(session.id, [clip])
@@ -375,9 +365,6 @@ def test_delete_clip(test_db_service, tmp_path):
     # Verify clip was deleted from database
     _, total = test_db_service.get_clips(session.id)
     assert total == 0
-
-    # Verify clip file was deleted
-    assert not audio_clip_path.exists()
 
     # Test deleting non-existent clip
     result = test_db_service.delete_clip(session.id, 'non-existent-id')

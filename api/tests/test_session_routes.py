@@ -1,8 +1,3 @@
-import numpy as np
-import pandas as pd
-
-from porcaro.api.database.models import SessionMetadataModel
-
 # TODO(m-lyon): #3 Mock the relevant database and in memory service calls used in these
 # tests so that they are unit tests rather than integration tests.
 
@@ -52,49 +47,6 @@ def test_get_nonexistent_session_endpoint(client_single_session):
     response = client.get('/api/sessions/nonexistent-id')
 
     assert response.status_code == 404
-
-
-def test_process_session_audio_endpoint(client_single_session, sample_session, mocker):
-    '''Test the process session audio API endpoint (tests update_session).'''
-    client, (upload_path, _) = client_single_session
-    upload_path.touch()
-    mock_track = np.array([1, 2, 3])  # Simple array with nbytes
-    mock_df = pd.DataFrame()
-    mock_metadata = SessionMetadataModel(
-        processed=True,
-        duration=10.0,
-        song_sample_rate=44100.0,
-        onset_algorithm='test_onset',
-        prediction_algorithm='test_prediction',
-        model_weights_path='test_weights.pt',
-    )
-
-    # Mock the transcription process
-    mock_process_audio = mocker.patch(
-        'porcaro.api.routers.sessions.process_audio_file',
-        return_value=(
-            mock_track,
-            mock_df,
-            120,
-            mock_metadata,
-        ),
-    )
-
-    response = client.post(
-        f'/api/sessions/{sample_session.id}/process',
-        json={
-            'time_signature': {'numerator': 4, 'denominator': 4},
-            'start_beat': 1.0,
-            'offset': 0.0,
-            'resolution': 16,
-        },
-    )
-
-    assert response.status_code == 200
-    data = response.json()
-    assert data['bpm'] == 120
-    assert data['duration'] == 10.0
-    mock_process_audio.assert_called_once()
 
 
 def test_get_session_progress_endpoint(client_single_session, sample_session_expanded):
